@@ -1,1124 +1,1728 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BACKROOMS — Level 0</title>
+<title>Backrooms — Уровень B2</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Courier New',monospace;user-select:none}
-body{display:flex;align-items:center;justify-content:center}
-canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block;cursor:none}
-#subtitles{position:fixed;bottom:10%;left:50%;transform:translateX(-50%);color:rgba(220,200,150,.65);font-size:15px;text-align:center;pointer-events:none;opacity:0;transition:opacity 1.2s ease;text-shadow:0 0 6px rgba(0,0,0,.9);max-width:70%;letter-spacing:1.5px;z-index:5}
-#subtitles.show{opacity:1}
-#startScreen{position:fixed;inset:0;background:#0a0905;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#c8b860}
-#startScreen h1{font-size:52px;letter-spacing:12px;margin-bottom:8px;text-shadow:0 0 30px rgba(200,180,80,.25)}
-#startScreen .sub{font-size:13px;opacity:.5;margin-bottom:30px;letter-spacing:3px}
-#startScreen .ctrls{font-size:12px;opacity:.45;line-height:1.9;text-align:center}
-#startScreen .enter{font-size:14px;opacity:.6;margin-top:35px;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:.6}50%{opacity:.2}}
-#hud{position:fixed;top:10px;right:15px;color:rgba(200,180,80,.3);font-size:11px;z-index:4;pointer-events:none;text-align:right;line-height:1.7;white-space:pre}
-#prompt{position:fixed;bottom:18%;left:50%;transform:translateX(-50%);color:#d8c870;font-size:14px;letter-spacing:2px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:6;text-shadow:0 0 8px #000}
-#prompt.show{opacity:.95}
-#inv{position:fixed;bottom:12px;left:12px;color:rgba(200,180,80,.5);font-size:12px;z-index:4;pointer-events:none;line-height:1.7;letter-spacing:1px}
-#noteOverlay{position:fixed;inset:0;background:rgba(8,7,4,.92);z-index:50;display:none;align-items:center;justify-content:center;cursor:pointer}
-#noteOverlay .paper{max-width:560px;background:#d8c878;color:#1a1408;padding:34px 40px;font-size:16px;line-height:1.7;letter-spacing:.5px;box-shadow:0 0 60px rgba(0,0,0,.8);transform:rotate(-.6deg);white-space:pre-wrap;font-family:'Courier New',monospace}
-#noteOverlay .paper .sig{display:block;text-align:right;margin-top:18px;font-size:13px;opacity:.7}
-#crosshair{position:fixed;top:50%;left:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(220,200,150,.35);z-index:3;pointer-events:none}
-#flash{position:fixed;inset:0;background:#fff;z-index:40;pointer-events:none;opacity:0;transition:opacity .08s}
+body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:none;user-select:none}
+#game{display:block;width:100vw;height:100vh;image-rendering:pixelated;image-rendering:crisp-edges}
+#cursor{position:fixed;top:50%;left:50%;width:4px;height:4px;background:rgba(255,255,255,0.6);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:100;box-shadow:0 0 6px rgba(255,255,255,0.3)}
+#hud{position:fixed;bottom:20px;left:20px;right:20px;display:none;z-index:50;pointer-events:none}
+.hud-row{display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap}
+.hud-item{background:rgba(0,0,0,0.65);border:1px solid rgba(255,200,50,0.2);padding:8px 14px;border-radius:4px;color:#c8b870;font-size:13px;letter-spacing:0.5px}
+.hud-item span{color:#fff;font-weight:bold}
+.hud-item.off span{color:#ff4444}
+.hud-item.on span{color:#44ff44}
+.hud-item.warn span{color:#ffaa00}
+.hud-health{position:fixed;bottom:60px;left:20px;width:200px;height:14px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,200,50,0.2);border-radius:4px;z-index:50;display:none;pointer-events:none;overflow:hidden}
+.hud-health-bar{height:100%;width:100%;background:linear-gradient(90deg,#882222,#cc3333);transition:width 0.3s}
+.hud-batt{position:fixed;bottom:80px;left:20px;color:#c8b870;font-size:12px;z-index:50;display:none;pointer-events:none;background:rgba(0,0,0,0.6);padding:4px 10px;border-radius:4px}
+#interact-prompt{position:fixed;bottom:50%;left:50%;transform:translate(-50%,80px);color:#e8d890;font-size:14px;text-align:center;display:none;z-index:50;pointer-events:none;text-shadow:0 0 10px rgba(0,0,0,0.9);background:rgba(0,0,0,0.5);padding:6px 16px;border-radius:4px;border:1px solid rgba(255,200,50,0.15)}
+#doc-ui{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:none;z-index:200;align-items:center;justify-content:center;flex-direction:column}
+#doc-ui .doc-frame{background:#1a1810;border:1px solid #3a3520;padding:30px 40px;max-width:500px;color:#c8b870;font-size:14px;line-height:1.7;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.8);white-space:pre-wrap}
+#doc-ui .doc-type{font-size:11px;color:#887840;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+#doc-ui .doc-close{position:absolute;top:10px;right:14px;color:#665;cursor:pointer;font-size:18px;pointer-events:all}
+#doc-ui .doc-close:hover{color:#aa9955}
+#choice-ui{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;z-index:210;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#choice-ui .choice-title{color:#e8d890;font-size:16px;margin-bottom:10px;text-align:center;max-width:420px}
+.choice-btn{background:#1a1810;border:1px solid #3a3520;color:#a09060;padding:10px 36px;font-family:inherit;font-size:14px;cursor:pointer;letter-spacing:2px;min-width:160px}
+.choice-btn:hover{border-color:#c8a840;color:#e8d890}
+#menu{position:fixed;top:0;left:0;right:0;bottom:0;background:#0a0908;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:300;gap:8px}
+#menu h1{color:#c8a840;font-size:42px;letter-spacing:6px;margin-bottom:8px;text-shadow:0 0 30px rgba(200,168,64,0.3)}
+#menu .subtitle{color:#665830;font-size:13px;letter-spacing:3px;margin-bottom:30px}
+.menu-btn{background:none;border:1px solid #332a10;color:#a09060;padding:10px 40px;font-family:inherit;font-size:14px;cursor:pointer;letter-spacing:2px;transition:all 0.2s;min-width:220px;text-align:center}
+.menu-btn:hover{border-color:#c8a840;color:#e8d890;background:rgba(200,168,64,0.05)}
+.menu-btn.disabled{opacity:0.3;pointer-events:none}
+#settings,#controls{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,5,3,0.95);display:none;z-index:310;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#settings h2,#controls h2{color:#c8a840;font-size:22px;letter-spacing:4px;margin-bottom:10px}
+.setting-row{display:flex;align-items:center;gap:14px;color:#a09060;font-size:13px}
+.setting-row label{min-width:180px;text-align:right}
+.setting-row input[type=range]{width:160px;accent-color:#c8a840}
+.setting-row .val{min-width:48px;color:#e8d890}
+.setting-row input[type=checkbox]{accent-color:#c8a840;width:18px;height:18px}
+.ctrl-row{display:flex;gap:30px;color:#a09060;font-size:13px;min-width:340px}
+.ctrl-row span:first-child{color:#e8d890;min-width:80px}
+#event-flash{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:40;opacity:0;transition:opacity 0.1s}
+#damage-vignette{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:45;box-shadow:inset 0 0 120px rgba(80,0,0,0);transition:box-shadow 0.5s}
+#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:99}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(255,255,255,0.15)}
+#crosshair::before{width:12px;height:1px;top:0;left:-6px}
+#crosshair::after{width:1px;height:12px;top:-6px;left:0}
+#stamina{position:fixed;bottom:96px;left:20px;width:200px;height:6px;background:rgba(0,0,0,0.5);border-radius:3px;z-index:50;display:none;overflow:hidden}
+#stamina-bar{height:100%;width:100%;background:#c8a840;transition:width 0.2s}
+#subtitle{position:fixed;top:62%;left:50%;transform:translateX(-50%);color:#b0b0b0;font-size:13px;z-index:48;display:none;pointer-events:none;text-shadow:0 0 8px #000;background:rgba(0,0,0,0.4);padding:5px 14px;border-radius:4px;text-align:center;max-width:80%}
 </style>
 </head>
 <body>
-<canvas id="screen"></canvas>
+<canvas id="game"></canvas>
+<div id="cursor"></div>
 <div id="crosshair"></div>
-<div id="subtitles"></div>
-<div id="prompt"></div>
-<div id="inv"></div>
-<div id="hud"></div>
-<div id="flash"></div>
-<div id="noteOverlay"><div class="paper"></div></div>
-<div id="startScreen">
-<h1>BACKROOMS</h1>
-<div class="sub">LEVEL 0 — THE LOBBY</div>
-<div class="ctrls">WASD / ARROWS — MOVE<br>MOUSE — LOOK (UP / DOWN / LEFT / RIGHT)<br>F — FLASHLIGHT<br>E — INTERACT / READ / OPEN<br>SHIFT — RUN<br>ESC — RELEASE MOUSE</div>
-<div class="enter">CLICK TO ENTER</div>
+<div id="hud">
+<div class="hud-row">
+<div class="hud-item" id="hud-docs">Документы: <span>0 / 8</span></div>
+<div class="hud-item" id="hud-gen">Генератор: <span>0 / 3</span></div>
+<div class="hud-item off" id="hud-power">Питание: <span>OFF</span></div>
+<div class="hud-item off" id="hud-lift">Лифт: <span>Заблокирован</span></div>
+<div class="hud-item" id="hud-floor">Этаж: <span>B2</span></div>
+<div class="hud-item" id="hud-monster">Монстр: <span>???</span></div>
 </div>
+</div>
+<div class="hud-health" id="hud-health"><div class="hud-health-bar" id="hud-health-bar"></div></div>
+<div class="hud-batt" id="hud-batt">Батарея фонаря: 100%</div>
+<div id="stamina"><div id="stamina-bar"></div></div>
+<div id="interact-prompt"></div>
+<div id="subtitle"></div>
+<div id="doc-ui"><div class="doc-frame"><div class="doc-type"></div><div class="doc-text"></div><div class="doc-close">✕</div></div></div>
+<div id="choice-ui"><div class="choice-title"></div><button class="choice-btn" data-choice="yes">ДА</button><button class="choice-btn" data-choice="no">НЕТ</button></div>
+<div id="menu">
+<h1>BACKROOMS</h1>
+<div class="subtitle">УРОВЕНЬ B2</div>
+<button class="menu-btn" id="btn-continue" style="display:none">ПРОДОЛЖИТЬ</button>
+<button class="menu-btn" id="btn-new">НОВАЯ ИГРА</button>
+<button class="menu-btn" id="btn-settings">НАСТРОЙКИ</button>
+<button class="menu-btn" id="btn-controls">УПРАВЛЕНИЕ</button>
+</div>
+<div id="settings">
+<h2>НАСТРОЙКИ</h2>
+<div class="setting-row"><label>Чувствительность</label><input type="range" id="s-sens" min="1" max="20" value="5"><span class="val" id="v-sens">5</span></div>
+<div class="setting-row"><label>Яркость</label><input type="range" id="s-bright" min="20" max="150" value="80"><span class="val" id="v-bright">80%</span></div>
+<div class="setting-row"><label>Громкость</label><input type="range" id="s-vol" min="0" max="100" value="60"><span class="val" id="v-vol">60%</span></div>
+<div class="setting-row"><label>Масштаб рендера</label><input type="range" id="s-scale" min="50" max="100" value="100" step="10"><span class="val" id="v-scale">100%</span></div>
+<div class="setting-row"><label>Зерно плёнки</label><input type="checkbox" id="s-grain" checked></div>
+<div class="setting-row"><label>Виньетка</label><input type="checkbox" id="s-vignette" checked></div>
+<div class="setting-row"><label>Хром. аберрация</label><input type="checkbox" id="s-chroma" checked></div>
+<br>
+<button class="menu-btn" id="btn-settings-back">НАЗАД</button>
+</div>
+<div id="controls">
+<h2>УПРАВЛЕНИЕ</h2>
+<div class="ctrl-row"><span>W A S D</span><span>Движение</span></div>
+<div class="ctrl-row"><span>SHIFT</span><span>Бег</span></div>
+<div class="ctrl-row"><span>CTRL</span><span>Присесть</span></div>
+<div class="ctrl-row"><span>E</span><span>Взаимодействие</span></div>
+<div class="ctrl-row"><span>F</span><span>Фонарь</span></div>
+<div class="ctrl-row"><span>R</span><span>Возродиться</span></div>
+<div class="ctrl-row"><span>ESC</span><span>Пауза</span></div>
+<div class="ctrl-row"><span>Мышь</span><span>Осмотр</span></div>
+<br>
+<button class="menu-btn" id="btn-controls-back">НАЗАД</button>
+</div>
+<div id="event-flash"></div>
+<div id="damage-vignette"></div>
 <script>
-"use strict";
-/* ============================================================
-   BACKROOMS — enhanced engine
-   - DDA raycaster w/ textured walls + per-row floor/ceiling
-   - 480x270 internal buffer, pixelated upscale
-   - Infinite 16x16 chunks, deterministic fBm, guaranteed streets
-   - Per-pixel Z-buffer for perfect sprite/wall occlusion
-   - Pitch (look up/down) + FIXED mouse inversion
-   - Biomes: lobby / office / warehouse / server
-   - Stalker AI (FSM) with "don't look" mechanic, real coords
-   - Sanity system, anomalies, interactables, spatial audio
-   ============================================================ */
+// ============================================================
+//  BACKROOMS — УРОВЕНЬ B2  |  Улучшенная версия
+//  Системы: Renderer / World / Chunk / Entity / Door / Monster
+//  Inventory / Objectives / Audio / UI / Lighting / Save
+//  Particle / Event / PostProcess
+// ============================================================
 
-// === CONSTANTS ===
-const W=480,H=270,TEX=64,CHUNK=16,FOV=0.66,HALF_H=H/2|0;
-const FOG_DIST=16,FOG_R=52,FOG_G=44,FOG_B=26,AMBIENT=0.40;
-const LIGHT_FALLOFF=0.28,LIGHT_RANGE=30;
-const STREET=5; // open street every N tiles (guaranteed traversable)
-
-// Biome palette: [wallRGB, floorRGB, ceilRGB, lightBase, roomType]
-const BIOMES={
- lobby:    {wall:[198,178,72],  floor:[52,45,33],  ceil:[158,152,118], light:1.30, room:'pillars'},
- office:   {wall:[176,170,150], floor:[70,66,58],  ceil:[120,118,108], light:1.10, room:'cubicles'},
- warehouse:{wall:[120,112,96],  floor:[60,56,48],  ceil:[90,86,76],    light:0.95, room:'racks'},
- server:   {wall:[72,80,92],    floor:[40,44,52],  ceil:[60,66,78],    light:0.80, room:'servers'},
+// ==================== КОНФИГУРАЦИЯ ====================
+const CFG = {
+    rw: 480, rh: 270,
+    texSize: 64,
+    chunkSize: 16,
+    viewDist: 12,
+    fov: 0.66,
+    moveSpeed: 2.8,
+    runSpeed: 4.5,
+    crouchSpeed: 1.6,
+    mouseSens: 0.002,
+    brightness: 0.8,
+    volume: 0.6,
+    renderScale: 1.0,
+    sens: 5,
+    grain: true,
+    vignette: true,
+    chroma: true,
+    flashlightDrain: 0.5,   // % в секунду
+    flashlightRange: 9
 };
 
-// === GLOBALS ===
-let canvas,screenCtx,imageData,renderBuffer,zBuffer,depthBuffer;
-let player={x:5.5,y:5.5,angle:0,pitchPix:0};
-let dirX=1,dirY=0,planeX=0,planeY=FOV;
-let flashlightOn=true,flashlightBattery=1.0,gameTime=0,walkTime=0,started=false;
-let keys={},mouseLocked=false,lastSaveTime=0;
-let chunkCache=new Map(),nearbyLights=[],lightData=new Float32Array(64*4),lightCount=0;
-let activeSprites=[],tileOverrides=new Map(),decals=[];
-let vignetteTable,grainTex,grainOffset=0;
-let audioCtx=null,audioNodes={},footstepTimer=0,isMoving=false,isRunning=false;
-let jumpscareFlash=0;
-let sanity=1.0, sanityDrainMul=1.0;
-let inventory=[];
-let interactTarget=null;
-let noteOverlayEl,promptEl,invEl,flashEl;
-let totalTurn=0, lastTurnAngle=0, streetDist=0;
-
-// === NOISE ===
-function hash2D(x,y){let h=Math.imul(x|0,374761393)+Math.imul(y|0,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295}
-function smooth(t){return t*t*(3-2*t)}
-function vNoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;const a=hash2D(xi,yi),b=hash2D(xi+1,yi),c=hash2D(xi,yi+1),d=hash2D(xi+1,yi+1);const ux=smooth(xf),uy=smooth(yf);return a*(1-ux)*(1-uy)+b*ux*(1-uy)+c*(1-ux)*uy+d*ux*uy}
-function fbm(x,y,oct){let v=0,amp=0.5,freq=1;for(let i=0;i<oct;i++){v+=vNoise(x*freq,y*freq)*amp;amp*=0.5;freq*=2}return v}
-
-function biomeAt(wx,wy){const b=fbm(wx*0.018,wy*0.018,2);if(b<0.34)return'lobby';if(b<0.55)return'office';if(b<0.73)return'warehouse';return'server'}
-
-// === TEXTURES (per biome) ===
-let wallTexs={},floorTexs={},ceilTexs={},silTex,doorTex,noteTex,exitTex;
-function clamp255(v){return v>255?255:v<0?0:v|0}
-function pack(r,g,b){return(0xFF<<24)|(clamp255(b)<<16)|(clamp255(g)<<8)|clamp255(r)}
-function tintNoise(x,y,scale){return(vNoise(x*scale,y*scale)-0.5)}
-
-function makeWallTex(base){
- const t=new Uint32Array(TEX*TEX);
- const[br,bg,bb]=base;
- for(let y=0;y<TEX;y++)for(let x=0;x<TEX;x++){
-  let r=br,g=bg,b=bb;
-  const sm=x%16;if(sm===0||sm===15){r-=42;g-=40;b-=26}
-  if(y%8===0){r-=10;g-=10;b-=6}
-  const st=fbm(x*.08,y*.06,3);if(st>.55){const s=(st-.55)*200;r-=s*.6;g-=s*.5;b-=s*.3}
-  const n=tintNoise(x,y,.4)*22;r+=n;g+=n;b+=n*.5;
-  if(hash2D(x,y)>.97){r-=35;g-=35;b-=22}
-  t[y*TEX+x]=pack(r,g,b);
- }
- return t;
+// ==================== УТИЛИТЫ ====================
+function hash(x, y) {
+    let h = (x * 374761393 + y * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) & 0x7fffffff) / 0x7fffffff;
 }
-function makeFloorTex(base){
- const t=new Uint32Array(TEX*TEX);
- const[br,bg,bb]=base;
- for(let y=0;y<TEX;y++)for(let x=0;x<TEX;x++){
-  let r=br,g=bg,b=bb;
-  const f=vNoise(x*.8,y*.8)*25;r+=f;g+=f;b+=f*.7;
-  const d=fbm(x*.05,y*.05,3);if(d>.5){const v=(d-.5)*60;r-=v*.5;g-=v*.5;b-=v*.3}
-  if((x+y)%4===0){r-=6;g-=6;b-=4}
-  t[y*TEX+x]=pack(r,g,b);
- }
- return t;
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, mn, mx) { return v < mn ? mn : v > mx ? mx : v; }
+function dist(x1, y1, x2, y2) { return Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)); }
+function smoothstep(a, b, t) { t = clamp((t-a)/(b-a), 0, 1); return t*t*(3-2*t); }
+
+function valueNoise(x, y) {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    const fx = x - ix, fy = y - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    return lerp(lerp(hash(ix, iy), hash(ix+1, iy), sx), lerp(hash(ix, iy+1), hash(ix+1, iy+1), sx), sy);
 }
-function makeCeilTex(base){
- const t=new Uint32Array(TEX*TEX);
- const[br,bg,bb]=base;
- for(let y=0;y<TEX;y++)for(let x=0;x<TEX;x++){
-  let r=br,g=bg,b=bb;
-  const gx=x%32,gy=y%32;if(gx===0||gx===31||gy===0||gy===31){r-=55;g-=55;b-=42}
-  const dp=vNoise(x*.5,y*.5);r+=(dp-.5)*25;g+=(dp-.5)*25;b+=(dp-.5)*20;
-  const st=fbm(x*.06,y*.06,3);if(st>.58){const s=(st-.58)*150;r-=s*.4;g-=s*.4;b-=s*.3}
-  t[y*TEX+x]=pack(r,g,b);
- }
- return t;
-}
-function generateTextures(){
- for(const k in BIOMES){
-  wallTexs[k]=makeWallTex(BIOMES[k].wall);
-  floorTexs[k]=makeFloorTex(BIOMES[k].floor);
-  ceilTexs[k]=makeCeilTex(BIOMES[k].ceil);
- }
- // door texture (darker panel)
- doorTex=new Uint32Array(TEX*TEX);
- for(let y=0;y<TEX;y++)for(let x=0;x<TEX;x++){
-  let r=120,g=96,b=50;
-  if(x>6&&x<58){r=140;g=110;b=58}
-  if(x===8||x===56){r=80;g=62;b=32}
-  if(y===10||y===TEX-10){r-=20;g-=16;b-=8}
-  if(x>26&&x<38&&y>20&&y<44){r=90;g=70;b=36} // handle plate
-  const n=tintNoise(x,y,.5)*16;r+=n;g+=n;b+=n*.6;
-  doorTex[y*TEX+x]=pack(r,g,b);
- }
- // note (paper on wall)
- noteTex=new Uint32Array(TEX*TEX);
- for(let y=0;y<TEX;y++)for(let x=0;x<TEX;x++){
-  const onPaper=x>10&&x<54&&y>8&&y<56;
-  let r=onPaper?210:180,g=onPaper?196:162,b=onPaper?130:70;
-  if(onPaper){const n=tintNoise(x,y,.6)*18;r+=n;g+=n;b+=n*.5;
-   // scribbles
-   if((y%6===14||y%6===20||y%6===26||y%6===32||y%6===38)&&x>16&&x<50&&hash2D(x,y)>.4){r=70;g=60;b=40}}
-  noteTex[y*TEX+x]=pack(r,g,b);
- }
- // exit (stairwell / level transition marker)
- exitTex=new Uint32Array(TEX*TEX);
- for(let y=0;y<TEX;y++)for(let x=0;x<TEX;x++){
-  let r=40,g=40,b=40;
-  const cx=x-32,cy=y-32,d=Math.sqrt(cx*cx+cy*cy);
-  if(d<20){r=20;g=20;b=22}
-  if(d<14){const ang=Math.atan2(cy,cx);if(((ang*4)|0)%2===0){r=90;g=80;b=60}}
-  exitTex[y*TEX+x]=pack(r,g,b);
- }
- // stalker silhouette (tall thin humanoid)
- silTex=new Float32Array(8*16);
- const shape=[
-  [0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[0,0,1,1,1,1,0,0],
-  [0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],
-  [0,1,1,1,1,1,1,0],[0,1,1,0,0,1,1,0],[0,1,1,0,0,1,1,0],[0,1,1,0,0,1,1,0],
-  [0,1,1,0,0,1,1,0],[0,1,1,0,0,1,1,0],[0,1,1,0,0,1,1,0],[0,0,1,0,0,1,0,0]];
- for(let y=0;y<16;y++)for(let x=0;x<8;x++)silTex[y*8+x]=shape[y][x];
+function fbm(x, y, oct) {
+    oct = oct || 4;
+    let v = 0, a = 1, f = 1, m = 0;
+    for (let i = 0; i < oct; i++) { v += valueNoise(x*f, y*f)*a; m += a; a *= 0.5; f *= 2; }
+    return v / m;
 }
 
-// === CHUNKS (deterministic, biome-aware, with procedural rooms) ===
-// Special wall tile types: 1=wall, 2=door(closed), 3=note-wall, 4=exit-marker
-function generateChunk(cx,cy){
- const tiles=new Uint8Array(CHUNK*CHUNK),lights=[];
- const biome=biomeAt(cx*CHUNK,cy*CHUNK);
- const B=BIOMES[biome];
- for(let y=0;y<CHUNK;y++)for(let x=0;x<CHUNK;x++){
-  const wx=cx*CHUNK+x,wy=cy*CHUNK+y;
-  const onX=((wx%STREET)+STREET)%STREET===0,onY=((wy%STREET)+STREET)%STREET===0;
-  if(onX||onY){tiles[y*CHUNK+x]=0;continue} // open street grid
-  tiles[y*CHUNK+x]=roomTile(biome,wx,wy,B);
- }
- // street lights at intersections
- for(let y=0;y<CHUNK;y++)for(let x=0;x<CHUNK;x++){
-  const wx=cx*CHUNK+x,wy=cy*CHUNK+y;
-  if(((wx%STREET)+STREET)%STREET===0&&((wy%STREET)+STREET)%STREET===0&&tiles[y*CHUNK+x]===0)
-   lights.push({x:wx+.5,y:wy+.5,baseI:B.light,curI:B.light,flickerT:0,flickerDur:0,flickerAmt:0,forcedOff:false,phase:hash2D(wx,wy)*100});
- }
- return{tiles,lights,cx,cy,biome,lastAccess:Date.now()};
+// ==================== ТЕКСТУРЫ ====================
+const TS = CFG.texSize;
+const textures = {};
+function makeTex() { return new Uint8Array(TS * TS * 4); }
+
+function genWallTex() {
+    const t = makeTex();
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+        const i = (y*TS+x)*4;
+        const n = valueNoise(x*0.25, y*0.25);
+        const line = (y % 16 < 1) ? -15 : 0;
+        const stain = fbm(x*0.08+5, y*0.08+5, 2) > 0.55 ? -30 : 0;
+        t[i]   = clamp(180 + n*25 + line + stain, 0, 255)|0;
+        t[i+1] = clamp(165 + n*20 + line + stain, 0, 255)|0;
+        t[i+2] = clamp(110 + n*15 + line + stain*0.5, 0, 255)|0;
+        t[i+3] = 255;
+    }
+    return t;
 }
-function roomTile(biome,wx,wy,B){
- const rx=((wx%STREET)+STREET)%STREET, ry=((wy%STREET)+STREET)%STREET;
- // rx,ry in 1..4 (interior of a 5x5 block)
- switch(B.room){
-  case 'pillars':{
-   // lobby: scattered pillars + occasional door / note / exit
-   if(rx===2&&ry===2&&fbm(wx*.12,wy*.12,3)>.5)return 1;
-   if(fbm(wx*.12,wy*.12,3)>.55)return 1;
-   break}
-  case 'cubicles':{
-   // office: cubicle partition walls forming rooms with door gaps
-   if((rx===2||ry===2)&&!(rx===2&&ry===2)){ // partition lines
-    if(hash2D(wx,wy)>.82)return 0; // door gap
-    if(hash2D(wx,wy)>.78)return 2; // closed door
-    return 1;
-   }
-   if(rx===3&&ry===3&&fbm(wx*.12,wy*.12,3)>.5)return 1;
-   break}
-  case 'racks':{
-   // warehouse: regular pillar grid, open aisles
-   if((rx%2===0)&&(ry%2===0))return 1;
-   if(rx===2&&ry===1&&hash2D(wx,wy)>.9)return 2;
-   break}
-  case 'servers':{
-   // server room: long racks (rows of walls with gaps)
-   if(ry===2&&rx!==1){if(hash2D(wx,wy)>.86)return 0;return 1}
-   if(ry===3&&rx!==4){if(hash2D(wx,wy)>.86)return 0;return 1}
-   break}
- }
- // rare note walls and exits
- const r=hash2D(wx*7+1,wy*7+3);
- if(r>.992)return 3;       // note
- if(r>.989&&r<.992)return 4; // exit marker (very rare)
- return 0;
+function genFloorTex() {
+    const t = makeTex();
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+        const i = (y*TS+x)*4;
+        const n = valueNoise(x*0.3+50, y*0.3+50);
+        const tile = ((x%16<1)||(y%16<1)) ? -20 : 0;
+        t[i]   = clamp(60 + n*20 + tile, 0, 255)|0;
+        t[i+1] = clamp(55 + n*18 + tile, 0, 255)|0;
+        t[i+2] = clamp(48 + n*15 + tile, 0, 255)|0;
+        t[i+3] = 255;
+    }
+    return t;
 }
-function getChunk(cx,cy){
- const key=cx+','+cy;let c=chunkCache.get(key);
- if(c){c.lastAccess=Date.now();return c}
- c=generateChunk(cx,cy);chunkCache.set(key,c);
- if(chunkCache.size>49){let ok=null,ot=Infinity;for(const[k,v]of chunkCache)if(v.lastAccess<ot){ot=v.lastAccess;ok=k}if(ok)chunkCache.delete(ok)}
- return c;
+function genCeilTex() {
+    const t = makeTex();
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+        const i = (y*TS+x)*4;
+        const n = valueNoise(x*0.2+100, y*0.2+100);
+        const panel = (x>8&&x<56&&y>8&&y<56) ? 8 : 0;
+        t[i]   = clamp(140 + n*15 + panel, 0, 255)|0;
+        t[i+1] = clamp(135 + n*14 + panel, 0, 255)|0;
+        t[i+2] = clamp(125 + n*12 + panel, 0, 255)|0;
+        t[i+3] = 255;
+    }
+    return t;
 }
-function rawTile(wx,wy){
- const cx=Math.floor(wx/CHUNK),cy=Math.floor(wy/CHUNK);
- const c=getChunk(cx,cy);const tx=wx-cx*CHUNK,ty=wy-cy*CHUNK;
- return c.tiles[ty*CHUNK+tx];
+function genDoorTex(kind) {
+    const t = makeTex();
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+        const i = (y*TS+x)*4;
+        const n = valueNoise(x*0.35+kind*100, y*0.35+kind*100);
+        let r, g, b;
+        if (kind === 0) { // офисная
+            r = 175 + n*20; g = 150 + n*18; b = 110 + n*14;
+            if ((x>4&&x<30&&y>4&&y<30)||(x>34&&x<60&&y>4&&y<30)||(x>4&&x<30&&y>34&&y<60)||(x>34&&x<60&&y>34&&y<60)){r-=25;g-=25;b-=18;}
+            if (x<3||x>60||y<3||y>60){r-=40;g-=35;b-=25;}
+            if (x>50&&x<58&&y>28&&y<36){r=190;g=175;b=60;}
+            if (x>22&&x<42&&y>8&&y<20){r=80;g=90;b=70;}
+        } else if (kind === 1) { // металлическая
+            r = 100 + n*25; g = 105 + n*25; b = 115 + n*20;
+            if (y%16<2){r+=20;g+=20;b+=25;} if (y%16>=14){r-=15;g-=15;b-=10;}
+            if ((x%16<3&&y%16<3)||(x%16>12&&y%16<3)){r+=30;g+=30;b+=35;}
+            if (x<2||x>61||y<2||y>61){r-=30;g-=30;b-=25;}
+            if (x>26&&x<38&&y>44&&y<56){r-=20;g-=20;b-=15;}
+        } else if (kind === 2) { // аварийная (красная)
+            r = 170 + n*20; g = 40 + n*10; b = 35 + n*10;
+            if ((y>14&&y<20)||(y>44&&y<50)){r=220+n*15;g=190+n*15;b=30+n*10; if((x+y)%8<4){r-=80;g-=70;b-=15;}}
+            if (x<2||x>61||y<2||y>61){r-=50;g-=15;b-=10;}
+            if (x>8&&x<56&&y>28&&y<36){r+=20;g+=20;b+=15;}
+            if (x>18&&x<46&&y>5&&y<13){r=200;g=190;b=140;}
+        } else { // деревянная/заржавевшая (kind 3)
+            r = 120 + n*20; g = 80 + n*15; b = 50 + n*10;
+            if (y%12<2){r-=20;g-=15;b-=10;}
+            const rust = fbm(x*0.12+700, y*0.12+700, 2);
+            if (rust > 0.5){r+=40;g=clamp(g-20,0,255)|0;b-=10;}
+            if (x<3||x>60||y<3||y>60){r-=30;g-=25;b-=15;}
+            if (x>50&&x<58&&y>28&&y<36){r=150;g=120;b=70;}
+        }
+        t[i]=clamp(r,0,255)|0; t[i+1]=clamp(g,0,255)|0; t[i+2]=clamp(b,0,255)|0; t[i+3]=255;
+    }
+    return t;
 }
-function chunkBiome(wx,wy){const cx=Math.floor(wx/CHUNK),cy=Math.floor(wy/CHUNK);return getChunk(cx,cy).biome}
-function isWall(wx,wy){
- const key=wx+','+wy;
- if(tileOverrides.has(key))return tileOverrides.get(key)===1;
- const t=rawTile(wx,wy);
- return t===1||t===2||t===3||t===4; // doors/notes/exits are solid until interacted
+function genExitDoorTex() {
+    const t = makeTex();
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+        const i = (y*TS+x)*4;
+        const n = valueNoise(x*0.35+900, y*0.35+900);
+        let r = 60 + n*15, g = 150 + n*25, b = 70 + n*15;
+        if ((y>14&&y<20)||(y>44&&y<50)){r=200+n*15;g=220+n*10;b=30+n*10; if((x+y)%8<4){r-=60;g-=80;b-=15;}}
+        if (x<2||x>61||y<2||y>61){r-=20;g-=30;b-=15;}
+        if (x>18&&x<46&&y>5&&y<13){r=180;g=220;b=160;}
+        t[i]=clamp(r,0,255)|0; t[i+1]=clamp(g,0,255)|0; t[i+2]=clamp(b,0,255)|0; t[i+3]=255;
+    }
+    return t;
 }
-function isSolidForMove(wx,wy){
- const key=wx+','+wy;
- if(tileOverrides.has(key))return tileOverrides.get(key)===1;
- const t=rawTile(wx,wy);
- return t===1; // closed doors(2) block movement; notes/exits handled via interact
+function initTextures() {
+    textures.wall = genWallTex();
+    textures.floor = genFloorTex();
+    textures.ceil = genCeilTex();
+    textures.doorOffice = genDoorTex(0);
+    textures.doorMetal = genDoorTex(1);
+    textures.doorEmergency = genDoorTex(2);
+    textures.doorWood = genDoorTex(3);
+    textures.doorExit = genExitDoorTex();
 }
-function tileTypeAt(wx,wy){
- const key=wx+','+wy;
- if(tileOverrides.has(key)){const v=tileOverrides.get(key);return v===1?1:0}
- return rawTile(wx,wy);
+// ==================== МИР / ЧАНКИ ====================
+const CHUNK = CFG.chunkSize;
+const MAX_CHUNKS = 64;
+const chunks = new Map();       // ключ -> Uint8Array(CHUNK*CHUNK)
+const chunkDoorSeeds = new Map(); // ключ -> Set door coords (для защиты от дублей)
+const chunkRoomTags = new Map();  // ключ -> Map cell->roomTag
+const chunkLRU = [];
+
+// Теги особых комнат
+const ROOM_TAGS = ['archive','server','storage','medical','kitchen','security','generator','lift','utility'];
+
+function chunkKey(cx, cy) { return cx + ',' + cy; }
+
+// Кэш getCell чтобы не дёргать Map каждый пиксель — не нужен, Map быстрый
+function getCell(wx, wy) {
+    const cx = Math.floor(wx / CHUNK), cy = Math.floor(wy / CHUNK);
+    const ch = chunks.get(chunkKey(cx, cy));
+    if (!ch) return 1;
+    const lx = ((wx % CHUNK) + CHUNK) % CHUNK;
+    const ly = ((wy % CHUNK) + CHUNK) % CHUNK;
+    return ch[ly * CHUNK + lx];
 }
 
-// === LIGHTS ===
-function updateNearbyLights(){
- nearbyLights.length=0;
- const pcx=Math.floor(player.x/CHUNK),pcy=Math.floor(player.y/CHUNK);
- for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-  const c=getChunk(pcx+dx,pcy+dy);
-  for(const l of c.lights){const ddx=l.x-player.x,ddy=l.y-player.y;if(ddx*ddx+ddy*ddy<144)nearbyLights.push(l)}
- }
-}
-function updateLightData(){
- lightCount=Math.min(64,nearbyLights.length);
- for(let i=0;i<lightCount;i++){const l=nearbyLights[i];lightData[i*4]=l.x;lightData[i*4+1]=l.y;lightData[i*4+2]=l.forcedOff?0:l.curI}
-}
+// Генерация чанка. Структура: коридоры каждые 7 клеток (street grid),
+// комнаты 7x7 с дверями на стенах, интерьер по шуму.
+// Опасность растёт по прогрессу: больше тупиков / узких коридоров.
+function generateChunk(cx, cy) {
+    const ch = new Uint8Array(CHUNK * CHUNK);
+    const ox = cx * CHUNK, oy = cy * CHUNK;
+    const doorsHere = new Set();
+    const roomTagsHere = new Map();
+    const danger = objectives ? objectives.docsCollected / 8 : 0; // 0..1
 
-// === RENDER ===
-function render(){
- const buf=renderBuffer,zb=zBuffer,dBuf=depthBuffer;
- const horizon=HALF_H+player.pitchPix;
- const rdx0=dirX-planeX,rdy0=dirY-planeY,rdx1=dirX+planeX,rdy1=dirY+planeY;
- const fogPacked=(0xFF<<24)|(FOG_B<<16)|(FOG_G<<8)|FOG_R;
+    // Стартовый чанк (0,0) — безопасная зона
+    const isStart = (cx === 0 && cy === 0);
 
- // --- Floor & ceiling (with pitch) ---
- for(let y=0;y<H;y++){
-  if(y===(horizon|0)){for(let x=0;x<W;x++){buf[y*W+x]=fogPacked;zb[y*W+x]=999}continue}
-  const isFloor=y>horizon;
-  const p=isFloor?(y-horizon):(horizon-y);
-  if(p<=0.5){for(let x=0;x<W;x++){buf[y*W+x]=fogPacked;zb[y*W+x]=999}continue}
-  const rowDist=HALF_H/p;
-  if(rowDist>=FOG_DIST){for(let x=0;x<W;x++){buf[y*W+x]=fogPacked;zb[y*W+x]=999}continue}
-  const stepX=rowDist*(rdx1-rdx0)/W,stepY=rowDist*(rdy1-rdy0)/W;
-  let fx=player.x+rowDist*rdx0,fy=player.y+rowDist*rdy0;
-  // choose biome texture by player's current chunk (approx for the row)
-  const b=chunkBiome(Math.floor(fx),Math.floor(fy));
-  const tex=isFloor?floorTexs[b]:ceilTexs[b];
-  const fogFactor=rowDist/FOG_DIST,invFog=1-fogFactor;
-  const flOn=flashlightOn&&flashlightBattery>0;
-  for(let x=0;x<W;x++){
-   const cx=Math.floor(fx),cy=Math.floor(fy);
-   const tx=((fx-cx)*TEX)|0,ty=((fy-cy)*TEX)|0;
-   const col=tex[ty*TEX+tx];
-   let r=col&0xFF,g=(col>>8)&0xFF,b2=(col>>16)&0xFF;
-   let bright=AMBIENT;
-   for(let i=0;i<lightCount;i++){
-    const lx=lightData[i*4],ly=lightData[i*4+1],li=lightData[i*4+2];
-    if(li<=0)continue;
-    const dx=fx-lx,dy=fy-ly,d2=dx*dx+dy*dy;
-    if(d2<LIGHT_RANGE)bright+=li/(1+d2*LIGHT_FALLOFF);
-   }
-   if(flOn){const fdx=fx-player.x,fdy=fy-player.y,fd=Math.sqrt(fdx*fdx+fdy*fdy);if(fd>.01){const dot=(fdx/fd)*dirX+(fdy/fd)*dirY;if(dot>.65)bright+=(dot-.65)*1.8/(1+fd*.12)}}
-   bright*=sanityLumen();
-   r=r*bright;g=g*bright;b2=b2*bright;
-   r=r*invFog+FOG_R*fogFactor;g=g*invFog+FOG_G*fogFactor;b2=b2*invFog+FOG_B*fogFactor;
-   buf[y*W+x]=pack(r,g,b2);
-   zb[y*W+x]=rowDist;
-   fx+=stepX;fy+=stepY;
-  }
- }
+    for (let y = 0; y < CHUNK; y++) for (let x = 0; x < CHUNK; x++) {
+        const wx = ox + x, wy = oy + y;
+        const idx = y * CHUNK + x;
 
- // --- Walls (DDA, textured, pitch-shifted, z-buffer fill) ---
- for(let x=0;x<W;x++){
-  const camX=2*x/W-1,rdx=dirX+planeX*camX,rdy=dirY+planeY*camX;
-  let mapX=Math.floor(player.x),mapY=Math.floor(player.y);
-  const ddx=Math.abs(1/rdx),ddy=Math.abs(1/rdy);
-  let stepX,sdx,stepY,sdy;
-  if(rdx<0){stepX=-1;sdx=(player.x-mapX)*ddx}else{stepX=1;sdx=(mapX+1-player.x)*ddx}
-  if(rdy<0){stepY=-1;sdy=(player.y-mapY)*ddy}else{stepY=1;sdy=(mapY+1-player.y)*ddy}
-  let hit=0,side=0,steps=0,hitType=1;
-  while(hit===0&&steps<64){
-   if(sdx<sdy){sdx+=ddx;mapX+=stepX;side=0}else{sdy+=ddy;mapY+=stepY;side=1}
-   const tt=tileTypeAt(mapX,mapY);
-   if(tt!==0){hit=1;hitType=tt}
-   steps++;
-  }
-  if(!hit){dBuf[x]=999;continue}
-  const perpDist=side===0?(sdx-ddx):(sdy-ddy);
-  dBuf[x]=perpDist;
-  if(perpDist<.01||perpDist>=FOG_DIST+2)continue;
-  const lineH=Math.floor(H/perpDist);
-  const ds=Math.max(0,Math.floor(horizon-lineH/2)),de=Math.min(H,Math.floor(horizon+lineH/2));
-  let wallX=side===0?player.y+perpDist*rdy:player.x+perpDist*rdx;
-  wallX-=Math.floor(wallX);
-  let texX=(wallX*TEX)|0;
-  if(side===0&&rdx>0)texX=TEX-texX-1;
-  if(side===1&&rdy<0)texX=TEX-texX-1;
-  const wwx=player.x+perpDist*rdx,wwy=player.y+perpDist*rdy;
-  const b=chunkBiome(mapX,mapY);
-  let tex=wallTexs[b];
-  if(hitType===2)tex=doorTex; else if(hitType===3)tex=noteTex; else if(hitType===4)tex=exitTex;
-  let bright=AMBIENT;
-  for(let i=0;i<lightCount;i++){
-   const lx=lightData[i*4],ly=lightData[i*4+1],li=lightData[i*4+2];
-   if(li<=0)continue;
-   const dx=wwx-lx,dy=wwy-ly,d2=dx*dx+dy*dy;
-   if(d2<LIGHT_RANGE)bright+=li/(1+d2*LIGHT_FALLOFF);
-  }
-  if(flashlightOn&&flashlightBattery>0){const fdx=wwx-player.x,fdy=wwy-player.y,fd=Math.sqrt(fdx*fdx+fdy*fdy);if(fd>.01){const dot=(fdx/fd)*dirX+(fdy/fd)*dirY;if(dot>.65)bright+=(dot-.65)*1.8/(1+fd*.12)}}
-  if(side===1)bright*=.72;
-  bright*=sanityLumen();
-  const fogFactor=Math.min(1,perpDist/FOG_DIST),invFog=1-fogFactor;
-  const texStep=TEX/lineH;
-  let texPos=(ds-horizon+lineH/2)*texStep;
-  for(let y=ds;y<de;y++){
-   let texY=texPos|0;if(texY<0)texY=0;if(texY>=TEX)texY=TEX-1;texPos+=texStep;
-   const col=tex[texY*TEX+texX];
-   let r=col&0xFF,g=(col>>8)&0xFF,b2=(col>>16)&0xFF;
-   r=r*bright;g=g*bright;b2=b2*bright;
-   r=r*invFog+FOG_R*fogFactor;g=g*invFog+FOG_G*fogFactor;b2=b2*invFog+FOG_B*fogFactor;
-   buf[y*W+x]=pack(r,g,b2);
-   zb[y*W+x]=perpDist;
-  }
- }
+        if (isStart && x >= 5 && x <= 10 && y >= 5 && y <= 10) { ch[idx] = 0; continue; }
 
- // --- Sprites (per-pixel z-buffer occlusion) ---
- for(const s of activeSprites)renderSprite(s);
+        const isCorrX = (wx % 7 === 0);
+        const isCorrY = (wy % 7 === 0);
 
- // --- Jumpscare flash ---
- if(jumpscareFlash>0){
-  const f=jumpscareFlash;
-  for(let i=0;i<buf.length;i++){
-   const col=buf[i];
-   let r=(col&0xFF)*(1-f)+255*f;
-   let g=((col>>8)&0xFF)*(1-f)+30*f;
-   let b2=((col>>16)&0xFF)*(1-f)+30*f;
-   buf[i]=pack(r,g,b2);
-  }
- }
+        if (isCorrX || isCorrY) {
+            ch[idx] = 0;
+            // Узкие коридоры на поздних этапах: случайно ставим стену-перегородку в коридоре
+            if (danger > 0.6 && !isStart && hash(wx*7+1, wy*13+3) < 0.06) ch[idx] = 1;
+            continue;
+        }
 
- // --- Sanity distortion overlay (false walls shimmer / chromatic shift) ---
- if(sanity<0.6)renderSanityDistortion();
+        const lx = wx % 7, ly = wy % 7;
 
- postProcess();
- screenCtx.putImageData(imageData,0,0);
+        // Стены комнат
+        if (lx === 0 || lx === 6 || ly === 0 || ly === 6) {
+            const h = hash(wx * 7 + 31, wy * 13 + 47);
+            // Дверь только на "проходных" стыках (рядом с коридором)
+            const nearCorr = (lx === 0 && isCorrY) || (ly === 0 && isCorrX) ||
+                             (lx === 6 && (wy+1)%7===0) || (ly === 6 && (wx+1)%7===0);
+            if (h < 0.22 && nearCorr) {
+                const dh = hash(wx * 3 + 7, wy * 5 + 11);
+                let dt;
+                if (dh < 0.35) dt = 2;        // офисная
+                else if (dh < 0.65) dt = 3;   // металлическая
+                else if (dh < 0.82) dt = 4;   // аварийная
+                else dt = 5;                  // деревянная
+                ch[idx] = dt;
+                doorsHere.add(wx + ',' + wy);
+            } else {
+                ch[idx] = 1;
+            }
+            continue;
+        }
+
+        // Интерьер комнаты
+        let n = fbm(wx * 0.13 + 77, wy * 0.13 + 77, 3);
+        // Тупики: на поздних этапах больше стен внутри
+        if (danger > 0.3) n += 0.08 * danger;
+        // Аварийный режим после генератора: перегородки
+        if (objectives && objectives.powerOn) n += 0.1;
+        ch[idx] = n > 0.52 ? 1 : 0;
+    }
+
+    // Особые комнаты: один спецкомнатный блок на чанк (кроме стартового)
+    if (!isStart) {
+        const rx = 2 + Math.floor(hash(cx*5+1, cy*9+2) * 10);
+        const ry = 2 + Math.floor(hash(cx*7+3, cy*3+5) * 10);
+        const tag = ROOM_TAGS[Math.floor(hash(cx*11+1, cy*13+7) * ROOM_TAGS.length)];
+        // Вырезаем комнату 3x3
+        for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 4; xx++) {
+            const px = rx + xx, py = ry + yy;
+            if (px < 0 || px >= CHUNK || py < 0 || py >= CHUNK) continue;
+            const idx = py * CHUNK + px;
+            if (xx === 0 || xx === 3 || yy === 0 || yy === 3) ch[idx] = 1; // стены
+            else { ch[idx] = 0; roomTagsHere.set((ox+px)+','+(oy+py), tag); }
+        }
+        // Дверь в спецкомнату
+        const doorSide = Math.floor(hash(cx*17+2, cy*19+3) * 4);
+        let dwx = ox + rx, dwy = oy + ry;
+        if (doorSide === 0) dwx += 1;       // низ
+        else if (doorSide === 1) dwx += 2;  // верх? упростим — ставим в нижней стене
+        else if (doorSide === 2) dwy += 1;
+        else dwy += 2;
+        // Гарантируем что клетка — стена и рядом коридор
+        const lx = ((dwx % CHUNK) + CHUNK) % CHUNK;
+        const ly = ((dwy % CHUNK) + CHUNK) % CHUNK;
+        const curIdx = ly * CHUNK + lx;
+        if (ch[curIdx] === 1) {
+            ch[curIdx] = 3; // металлическая дверь в спецкомнату
+            doorsHere.add(dwx + ',' + dwy);
+        }
+    }
+
+    chunkDoorSeeds.set(chunkKey(cx, cy), doorsHere);
+    chunkRoomTags.set(chunkKey(cx, cy), roomTagsHere);
+    return ch;
 }
 
-function renderSprite(s){
- const sx=s.x-player.x,sy=s.y-player.y;
- const invDet=1.0/(planeX*dirY-dirX*planeY);
- const tX=invDet*(dirY*sx-dirX*sy);
- const tY=invDet*(-planeY*sx+planeX*sy);
- if(tY<=.1)return;
- const screenX=Math.floor((W/2)*(1+tX/tY));
- const horizon=HALF_H+player.pitchPix;
- const vMove=s.vMove||0;
- const spriteH=Math.abs(Math.floor(H/tY))*s.scale;
- const spriteW=spriteH*(s.aspect||0.5);
- if(spriteH<1||spriteW<.5)return;
- const dsY=Math.max(0,Math.floor(horizon-spriteH/2+vMove));
- const deY=Math.min(H,Math.floor(horizon+spriteH/2+vMove));
- const dsX=Math.max(0,Math.floor(screenX-spriteW/2));
- const deX=Math.min(W,Math.floor(screenX+spriteW/2));
- if(deY<=dsY||deX<=dsX)return;
- const fogFactor=Math.min(1,tY/FOG_DIST),invFog=1-fogFactor;
- const buf=renderBuffer,zb=zBuffer;
- const texW=s.texW||8,texH=s.texH||16,tex=s.tex||silTex;
- const flOn=flashlightOn&&flashlightBattery>0;
- // light the sprite like walls
- let bright=AMBIENT;
- for(let i=0;i<lightCount;i++){const lx=lightData[i*4],ly=lightData[i*4+1],li=lightData[i*4+2];if(li<=0)continue;const dx=s.x-lx,dy=s.y-ly,d2=dx*dx+dy*dy;if(d2<LIGHT_RANGE)bright+=li/(1+d2*LIGHT_FALLOFF)}
- if(flOn){const fdx=s.x-player.x,fdy=s.y-player.y,fd=Math.sqrt(fdx*fdx+fdy*fdy);if(fd>.01){const dot=(fdx/fd)*dirX+(fdy/fd)*dirY;if(dot>.5)bright+=(dot-.5)*1.6/(1+fd*.12)}}
- bright*=sanityLumen();
- for(let x=dsX;x<deX;x++){
-  const texX=Math.floor((x-(screenX-spriteW/2))/spriteW*texW);
-  if(texX<0||texX>=texW)continue;
-  for(let y=dsY;y<deY;y++){
-   // PER-PIXEL Z-BUFFER: only draw if sprite is in front of whatever is there
-   if(tY>=zb[y*W+x])continue;
-   const texY=Math.floor((y-dsY)/(deY-dsY)*texH);
-   if(texY<0||texY>=texH)continue;
-   const a=tex[texY*texW+texX];
-   if(a<=0)continue;
-   const alpha=(a*s.opacity);
-   const idx=y*W+x,col=buf[idx];
-   let r=col&0xFF,g=(col>>8)&0xFF,b2=(col>>16)&0xFF;
-   if(s.darken){ // silhouette: darken existing
-    const d=alpha*0.9*invFog*bright;
-    r=r*(1-d);g=g*(1-d);b2=b2*(1-d);
-   }else{ // textured sprite blend
-    const tr=s.color?((s.color>>0)&0xFF):200,tg=s.color?((s.color>>8)&0xFF):180,tb=s.color?((s.color>>16)&0xFF):120;
-    r=r*(1-alpha)+tr*alpha*bright;g=g*(1-alpha)+tg*alpha*bright;b2=b2*(1-alpha)+tb*alpha*bright;
-    r=r*invFog+FOG_R*fogFactor;g=g*invFog+FOG_G*fogFactor;b2=b2*invFog+FOG_B*fogFactor;
-   }
-   buf[idx]=pack(r,g,b2);
-  }
- }
+// Получить тег комнаты для клетки
+function getRoomTag(wx, wy) {
+    const cx = Math.floor(wx / CHUNK), cy = Math.floor(wy / CHUNK);
+    const tags = chunkRoomTags.get(chunkKey(cx, cy));
+    if (!tags) return null;
+    return tags.get(wx + ',' + wy) || null;
 }
 
-function sanityLumen(){return 0.55+sanity*0.45} // low sanity = darker world
-function renderSanityDistortion(){
- const buf=renderBuffer,strength=(0.6-sanity)/0.6;
- // subtle horizontal wobble + extra vignette darkening
- for(let y=0;y<H;y++){
-  const wobble=Math.sin(y*0.21+gameTime*4)*strength*2.0;
-  const wo=wobble|0;
-  for(let x=0;x<W;x++){
-   const sx=((x+wo)%W+W)%W;
-   const col=buf[y*W+sx];
-   let r=col&0xFF,g=(col>>8)&0xFF,b2=(col>>16)&0xFF;
-   const edge=Math.abs(x/W-.5)*2;
-   const vd=1-edge*edge*strength*0.5;
-   r*=vd;g*=vd;b2*=vd;
-   buf[y*W+x]=pack(r,g,b2);
-  }
- }
+function ensureChunkAt(wx, wy) {
+    const cx = Math.floor(wx / CHUNK), cy = Math.floor(wy / CHUNK);
+    const k = chunkKey(cx, cy);
+    if (chunks.has(k)) return;
+    chunks.set(k, generateChunk(cx, cy));
+    const ds = chunkDoorSeeds.get(k);
+    if (ds) for (const dk of ds) if (!doors.has(dk)) doors.set(dk, createDoor(dk));
+    chunkLRU.push(k);
 }
 
-// === POST-PROCESS ===
-function postProcess(){
- const buf=renderBuffer;grainOffset=(grainOffset+1)&0xFFFF;
- const sanityGrain=sanity<0.5?(0.5-sanity)*0.25:0;
- for(let y=0;y<H;y++){
-  const sl=(y&1)===0?.92:1.0;
-  const yg=(y*31+grainOffset)&255;
-  for(let x=0;x<W;x++){
-   const idx=y*W+x,col=buf[idx];
-   let r=col&0xFF,g=(col>>8)&0xFF,b=(col>>16)&0xFF;
-   const vm=vignetteTable[idx];
-   const xg=(x*17+grainOffset*7)&255;
-   const grain=(grainTex[yg*256+xg]-128)*(.09+sanityGrain);
-   r=r*vm*sl+grain;g=g*vm*sl+grain;b=b*vm*sl+grain;
-   r*=1.06;b*=.88;
-   const edge=Math.abs(x/W-.5)*2;
-   if(edge>.75){const ca=(edge-.75)*4;r+=ca*10;b-=ca*8}
-   // low sanity desaturation
-   if(sanity<0.7){const sat=sanity/0.7;const gray=(r+g+b)/3;r=gray+(r-gray)*sat;g=gray+(g-gray)*sat;b=gray+(b-gray)*sat}
-   buf[idx]=pack(r,g,b);
-  }
- }
+function ensureChunks(px, py) {
+    const pcx = Math.floor(px / CHUNK), pcy = Math.floor(py / CHUNK);
+    const needed = new Set();
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const cx = pcx + dx, cy = pcy + dy;
+        const k = chunkKey(cx, cy);
+        needed.add(k);
+        if (!chunks.has(k)) {
+            chunks.set(k, generateChunk(cx, cy));
+            // Создаём двери этого чанка (если ещё нет)
+            const ds = chunkDoorSeeds.get(k);
+            if (ds) for (const dk of ds) if (!doors.has(dk)) doors.set(dk, createDoor(dk));
+            chunkLRU.push(k);
+        }
+    }
+    // Выгрузка далёких чанков + их дверей
+    while (chunkLRU.length > MAX_CHUNKS) {
+        const old = chunkLRU.shift();
+        if (needed.has(old)) { chunkLRU.push(old); continue; }
+        chunks.delete(old);
+        const ds = chunkDoorSeeds.get(old);
+        if (ds) { for (const dk of ds) doors.delete(dk); chunkDoorSeeds.delete(old); }
+        chunkRoomTags.delete(old);
+    }
 }
 
-// === STALKER AI ===
-// A real entity that lives in the world with its own coords + angle.
-// FSM: DORMANT -> HINTING -> WANDERING -> STALKING -> HUNTING -> LURKING
-// "Don't look" rule: staring makes it vanish; looking away lets it approach.
-// Learns from player habits (street use, turning rate). Never teleports
-// without cause. No classic Game Over — caught = relocated.
-let stalker={
- state:'dormant', x:0,y:0, angle:0, vx:0,vy:0,
- lastSeenX:0,lastSeenY:0, knowsPlayer:false, visible:false,
- pathTimer:0, breathTimer:0, footstepTimer:0,
- totalApproach:0, // accumulated "don't look" approach distance
- spawnTime:0, huntTimer:0, sinceSeen:0,
- silenceTimer:0, // after a chase, silence window
- lastNoiseT:0,
- // learned weights (player habits)
- wStreet:0, wTurn:0, wIdle:0,
+// ==================== ДВЕРИ ====================
+const doors = new Map();
+// cell: 2 офисная, 3 металлическая, 4 аварийная, 5 деревянная, 6 выход (зелёная)
+const DOOR_TYPES = {
+    2: { name: 'Офисная дверь', speed: 0.6, sound: 'wood', tex: 'doorOffice' },
+    3: { name: 'Металлическая дверь', speed: 0.3, sound: 'metal', tex: 'doorMetal' },
+    4: { name: 'Аварийная дверь', speed: 0.9, sound: 'alarm', tex: 'doorEmergency' },
+    5: { name: 'Деревянная дверь', speed: 0.5, sound: 'wood', tex: 'doorWood' },
+    6: { name: 'Выход', speed: 0.7, sound: 'metal', tex: 'doorExit' }
 };
 
-function stalkerInit(){
- stalker.state='dormant'; stalker.spawnTime=gameTime; stalker.silenceTimer=0;
- stalker.knowsPlayer=false; stalker.totalApproach=0; stalker.sinceSeen=0;
- stalker.wStreet=0;stalker.wTurn=0;stalker.wIdle=0;
- // hidden far away until activated
- stalker.x=player.x; stalker.y=player.y;
+function createDoor(dk) {
+    const parts = dk.split(',');
+    const wx = parseInt(parts[0]), wy = parseInt(parts[1]);
+    const cell = getCell(wx, wy);
+    const dt = DOOR_TYPES[cell] || DOOR_TYPES[2];
+    return {
+        wx: wx, wy: wy, type: cell,
+        openAmount: 0, opening: false, closing: false,
+        locked: (cell === 3 && hash(wx+500, wy+500) < 0.15), // некоторые металлические заперты
+        jammed: hash(wx + 500, wy + 500) < 0.06,
+        slamTimer: 0,
+        interacted: false
+    };
 }
 
-function spawnStalkerFar(){
- // place at a real traversable tile ~ 14-22 tiles away
- for(let tries=0;tries<40;tries++){
-  const a=Math.random()*Math.PI*2, dist=14+Math.random()*8;
-  const tx=Math.floor(player.x+Math.cos(a)*dist), ty=Math.floor(player.y+Math.sin(a)*dist);
-  if(!isWall(tx,ty)){stalker.x=tx+0.5;stalker.y=ty+0.5;stalker.angle=a+Math.PI;return true}
- }
- stalker.x=player.x+10;stalker.y=player.y+10;return false;
+function updateDoors(dt) {
+    for (const [k, d] of doors) {
+        const dtInfo = DOOR_TYPES[d.type] || DOOR_TYPES[2];
+        const spd = dtInfo.speed * dt;
+        if (d.opening) {
+            d.openAmount = Math.min(1, d.openAmount + spd);
+            if (d.openAmount >= 1) d.opening = false;
+        } else if (d.closing) {
+            d.openAmount = Math.max(0, d.openAmount - spd);
+            if (d.openAmount <= 0) d.closing = false;
+        }
+        // Двери могут сами хлопать после 6 документов (событие)
+        if (d.slamTimer > 0) {
+            d.slamTimer -= dt;
+            if (d.slamTimer <= 0 && d.openAmount > 0 && !d.jammed) {
+                d.closing = true; d.opening = false;
+                playSound('door_slam');
+            }
+        }
+    }
 }
 
-function lineOfSightClear(x0,y0,x1,y1){
- // coarse DDA sample for visibility occlusion by walls
- const dx=x1-x0,dy=y1-y0,dist=Math.sqrt(dx*dx+dy*dy);
- if(dist<0.01)return true;
- const steps=Math.ceil(dist*2);
- const sx=dx/steps,sy=dy/steps;
- let cx=x0,cy=y0;
- for(let i=0;i<steps;i++){cx+=sx;cy+=sy;if(isWall(Math.floor(cx),Math.floor(cy)))return false}
- return true;
+function interactDoor(d) {
+    if (d.jammed) return 'Заклинило.';
+    if (d.locked && player.keys <= 0) return 'Требуется ключ.';
+    if (d.locked) {
+        d.locked = false; player.keys--;
+        showPrompt('Ключ использован. Дверь отперта.');
+        playSound('metal_open');
+    }
+    if (d.openAmount > 0 && d.openAmount < 1) {
+        d.closing = true; d.opening = false;
+        playSound((DOOR_TYPES[d.type]||DOOR_TYPES[2]).sound + '_close');
+        return null;
+    }
+    if (d.openAmount >= 1) {
+        d.closing = true; d.opening = false;
+        playSound((DOOR_TYPES[d.type]||DOOR_TYPES[2]).sound + '_close');
+        return null;
+    }
+    // Двери с выбором — аварийные иногда спрашивают
+    if (d.type === 4 && !d.interacted && hash(d.wx+90, d.wy+90) < 0.3 && gameState === 'playing') {
+        showDoorChoice(d, 'Аварийная дверь. Открыть? Сработает сирена.');
+        return null;
+    }
+    d.opening = true; d.closing = false; d.interacted = true;
+    playSound((DOOR_TYPES[d.type]||DOOR_TYPES[2]).sound + '_open');
+    return null;
 }
 
-function playerLookingAtStalker(){
- const dx=stalker.x-player.x,dy=stalker.y-player.y,d=Math.sqrt(dx*dx+dy*dy);
- if(d<0.1)return true;
- return(dx/d)*dirX+(dy/d)*dirY>0.35; // within ~70 deg cone = "looking"
+function canWalk(x, y) {
+    const r = 0.22;
+    for (let dy = -r; dy <= r; dy += r * 2) for (let dx = -r; dx <= r; dx += r * 2) {
+        const wx = Math.floor(x + dx), wy = Math.floor(y + dy);
+        const c = getCell(wx, wy);
+        if (c === 1) return false;
+        if (c >= 2 && c <= 6) {
+            const d = doors.get(wx + ',' + wy);
+            if (!d || d.openAmount < 0.75) return false;
+        }
+    }
+    return true;
 }
 
-function stalkerCanSeePlayer(){
- const dx=player.x-stalker.x,dy=player.y-stalker.y,d2=dx*dx+dy*dy;
- if(d2>400)return false; // >20 tiles
- if(!lineOfSightClear(stalker.x,stalker.y,player.x,player.y))return false;
- return true;
+function showDoorChoice(d, text) {
+    const ui = document.getElementById('choice-ui');
+    ui.querySelector('.choice-title').textContent = text;
+    ui.dataset.door = d.wx + ',' + d.wy;
+    ui.style.display = 'flex';
+    gameState = 'choosing';
 }
-
-function stalkerMoveToward(tx,ty,speed,dt){
- const dx=tx-stalker.x,dy=ty-stalker.y,d=Math.sqrt(dx*dx+dy*dy);
- if(d<0.05)return;
- const nx=dx/d,ny=dy/d;
- const mx=nx*speed*dt,my=ny*speed*dt;
- // wall collision (separate axes), treat doors as blocking
- if(!isSolidForMove(Math.floor(stalker.x+mx+Math.sign(mx)*0.3),Math.floor(stalker.y)))stalker.x+=mx;
- else if(!isSolidForMove(Math.floor(stalker.x),Math.floor(stalker.y+my+Math.sign(my)*0.3)))stalker.y+=my;
- else{ stalker.angle+= (Math.random()<.5?1:-1)*Math.PI*0.5*dt*4 } // bump turn
- stalker.angle=Math.atan2(ny,nx);
-}
-
-function stalkerWander(dt){
- stalker.pathTimer-=dt;
- if(stalker.pathTimer<=0){
-  stalker.pathTimer=2+Math.random()*4;
-  // pick a wander target along a street or a random open neighbor
-  const goStreet=Math.random()<0.5+stalker.wStreet*0.3;
-  let tx,ty;
-  if(goStreet){
-   // follow nearest street axis
-   const sx=Math.round(stalker.x/STREET)*STREET, sy=Math.round(stalker.y/STREET)*STREET;
-   if(Math.random()<0.5)tx=sx+(Math.random()<.5?-1:1)*STREET*2,ty=stalker.y;
-   else tx=stalker.x,ty=sy+(Math.random()<.5?-1:1)*STREET*2;
-  }else{
-   tx=stalker.x+(Math.random()-.5)*12,ty=stalker.y+(Math.random()-.5)*12;
-  }
-  stalker._wt={x:tx,y:ty};
- }
- if(stalker._wt)stalkerMoveToward(stalker._wt.x,stalker._wt.y,1.0,dt);
-}
-
-function updateStalker(dt){
- const s=stalker;
- const elapsed=gameTime-s.spawnTime;
-
- // ---- learning: track player habits ----
- if(isMoving){ if(Math.abs(player.angle-lastTurnAngle)<0.01){} }
- const dTurn=Math.abs(normalizeAngle(player.angle-lastTurnAngle));
- totalTurn+=dTurn; lastTurnAngle=player.angle;
- if(isMoving){s.wIdle=Math.max(0,s.wIdle-dt*0.02)} else s.wIdle=Math.min(1,s.wIdle+dt*0.02);
- // street usage approx: if on a street tile
- const onStr=((Math.floor(player.x)%STREET)+STREET)%STREET===0||((Math.floor(player.y)%STREET)+STREET)%STREET===0;
- if(onStr)s.wStreet=Math.min(1,s.wStreet+dt*0.01); else s.wStreet=Math.max(0,s.wStreet-dt*0.01);
- // turning habit (rolling)
- s.wTurn=s.wTurn*0.99+ dTurn*0.5; s.wTurn=Math.min(1,s.wTurn);
-
- // ---- state machine ----
- switch(s.state){
-  case 'dormant':{
-   // first ~12-18 min nothing exists, then hints begin
-   if(walkTime>120+Math.random()*180){ s.state='hinting'; }
-   break}
-  case 'hinting':{
-   // only audio/visual hints, no real entity yet. After a while, spawn for real.
-   if(!s.knowsPlayer && elapsed>90+Math.random()*120){ if(spawnStalkerFar()){s.knowsPlayer=true;s.state='wandering';s.spawnTime=gameTime;} }
-   break}
-  case 'wandering':{
-   stalkerWander(dt);
-   // occasional footstep noise if near (it just walks the world)
-   s.footstepTimer-=dt;
-   if(s.footstepTimer<=0){
-    const dx=s.x-player.x,dy=s.y-player.y,d=Math.sqrt(dx*dx+dy*dy);
-    if(d<18){ playSpatialFootstepAt(s.x,s.y,0.35); }
-    s.footstepTimer=0.5+Math.random()*0.7;
-   }
-   if(stalkerCanSeePlayer()){ s.state='stalking'; s.sinceSeen=0; }
-   break}
-  case 'stalking':{
-   // it has spotted the player. Now the "don't look" mechanic governs approach.
-   s.sinceSeen+=dt;
-   const canSee=stalkerCanSeePlayer();
-   const playerLooking=playerLookingAtStalker();
-   const dx=player.x-s.x,dy=player.y-s.y,d=Math.sqrt(dx*dx+dy*dy);
-   // speed depends on darkness (flashlight) + sanity
-   let baseSpeed=1.6;
-   if(!flashlightOn||flashlightBattery<=0)baseSpeed*=1.7; // darkness = faster
-   else baseSpeed*=0.8; // light = slower, sometimes hides
-   // ---- DON'T LOOK rule ----
-   if(playerLooking && canSee){
-    // staring at it: it freezes / fades; resets approach
-    s.totalApproach=Math.max(0,s.totalApproach-dt*4);
-    s.visible=true;
-    // if stared long enough it vanishes (goes dormant-ish then returns)
-    if(s.sinceSeen>5 && d<8){ vanishStalker(); break }
-    // standing still while watched
-   } else if(!playerLooking && canSee){
-    // looking away: it approaches quickly (the scary part)
-    s.visible=false;
-    stalkerMoveToward(player.x,player.y,baseSpeed*1.3,dt);
-    s.totalApproach+=dt*baseSpeed;
-    // whisper breath
-    s.breathTimer-=dt; if(s.breathTimer<=0){playBreath(d);s.breathTimer=1.2+Math.random()*1.5}
-   } else if(!canSee){
-    // out of sight: normal slow approach / wander toward last known
-    s.visible=false;
-    stalkerMoveToward(player.x,player.y,baseSpeed,dt);
-    s.footstepTimer-=dt; if(s.footstepTimer<=0){const dd=Math.sqrt(dx*dx+dy*dy);if(dd<16)playSpatialFootstepAt(s.x,s.y,0.3);s.footstepTimer=0.6+Math.random()*0.6}
-   }
-   // path-cross detection => start a hunt
-   if(d<3.0){ s.state='hunting'; s.huntTimer=0; playChaseStinger(); showSubtitle('It found you.'); }
-   // lose interest if player escaped sight for long
-   if(s.sinceSeen>40 && !canSee){ s.state='wandering'; s.silenceTimer=120+Math.random()*120; }
-   break}
-  case 'hunting':{
-   // 30-second climax chase. Runs straight at the player.
-   s.huntTimer+=dt;
-   const dx=player.x-s.x,dy=player.y-s.y,d=Math.sqrt(dx*dx+dy*dy);
-   let sp=3.2; if(!flashlightOn||flashlightBattery<=0)sp*=1.25;
-   stalkerMoveToward(player.x,player.y,sp,dt);
-   s.footstepTimer-=dt; if(s.footstepTimer<=0){playSpatialFootstepAt(s.x,s.y,0.6);s.footstepTimer=0.28}
-   s.breathTimer-=dt; if(s.breathTimer<=0){playBreath(d);s.breathTimer=0.8}
-   s.visible=true;
-   if(d<0.7){ caughtByStalker(); break }
-   if(s.huntTimer>30){ // escaped
-    s.state='lurking'; s.silenceTimer=180+Math.random()*120; vanishStalkerSilent();
-    showSubtitle('...silence.');
-   }
-   break}
-  case 'lurking':{
-   // hidden but exists; occasional distant sighting; can re-escalate
-   s.silenceTimer-=dt;
-   // slowly reposition far away, wandering
-   stalkerWander(dt);
-   if(s.silenceTimer<=0){ s.state='wandering'; }
-   break}
- }
-
- // ---- render presence (real sightings vs hallucinations handled in events) ----
- if(s.state==='stalking'||s.state==='hunting'){
-  // only draw if actually visible to player (line of sight + in view cone) OR very close
-  const dx=s.x-player.x,dy=s.y-player.y,d=Math.sqrt(dx*dx+dy*dy);
-  const inView=(dx/d)*dirX+(dy/d)*dirY>0.2;
-  const clear=lineOfSightClear(player.x,player.y,s.x,s.y);
-  if(d<FOG_DIST && inView && clear){
-   activeSprites.push({x:s.x,y:s.y,opacity: s.state==='hunting'?1.0:(0.55+0.45*Math.min(1,s.totalApproach*0.2)),scale:s.state==='hunting'?1.4:1.0,life:0.08,maxLife:0.08,baseOpacity:1,darken:true});
-  } else if(d<6 && !clear){
-   // "steps behind the wall" — it's there but occluded
-   if(Math.random()<0.04)playSpatialFootstepAt(s.x,s.y,0.4);
-  }
- }
- // sanity drain from proximity
- const dx=s.x-player.x,dy=s.y-player.y,d=Math.sqrt(dx*dx+dy*dy);
- if((s.state==='stalking'||s.state==='hunting') && d<12){
-  sanity-=dt*(0.01+(12-d)*0.004)*sanityDrainMul;
- }
-}
-
-function vanishStalker(){
- // "looked too long" => it dissolves and relocates far, returns later
- stalker.state='lurking'; stalker.silenceTimer=60+Math.random()*90; vanishStalkerSilent();
- showSubtitle('It was never there. Or was it?');
-}
-function vanishStalkerSilent(){ spawnStalkerFar(); stalker.sinceSeen=0; stalker.totalApproach=0; }
-
-function caughtByStalker(){
- // NO classic Game Over: white flash + noise + relocate somewhere else
- triggerJumpscare();
- flashScreen(1);
- setTimeout(()=>{
-  // relocate player to a far random traversable point in a random direction
-  for(let t=0;t<60;t++){
-   const a=Math.random()*Math.PI*2, dist=30+Math.random()*40;
-   const tx=Math.floor(player.x+Math.cos(a)*dist),ty=Math.floor(player.y+Math.sin(a)*dist);
-   if(!isWall(tx,ty)){player.x=tx+0.5;player.y=ty+0.5;player.angle=a+Math.PI;break}
-  }
-  sanity=Math.min(1,sanity+0.25); // partial "reset" of nerves
-  stalker.state='lurking'; stalker.silenceTimer=240+Math.random()*180; vanishStalkerSilent();
-  flashScreen(0);
-  updateNearbyLights();
- },1200);
-}
-
-// === EVENTS (atmosphere, hallucinations, anomalies) ===
-let evState={
- lastEvent:0,cooldown:12,
- footstepActive:false,footstepTimer:0,footstepDuration:0,footstepSync:false,footstepX:0,footstepY:0,
- lightOffActive:false,lightOffLight:null,
- anomalyActive:false,anomalyTile:null,
- lastHallu:0,
+// ==================== ПРЕДМЕТЫ ====================
+const items = [];
+const ITEM_TYPES = {
+    doc:     { name: 'Документ', color: [200,184,112] },
+    genPart: { name: 'Деталь генератора', color: [112,168,200] },
+    battery: { name: 'Батарейка', color: [128,200,112] },
+    key:     { name: 'Ключ', color: [200,200,112] },
+    pill:    { name: 'Таблетки', color: [200,112,112] },
+    map:     { name: 'Карта', color: [112,200,200] },
+    photo:   { name: 'Фотография', color: [180,180,180] },
+    tool:    { name: 'Инструмент', color: [200,150,80] }
 };
-const atmosphereMsgs=["The air feels heavy.","You've been here before.","The humming never stops.","Is that your reflection?","Don't look back.","The walls are watching.","You can't remember how you got here.","The carpet is damp.","Time doesn't work here.","Something is different.","You smell old paper.","There are no exits.","The fluorescent lights are watching.","You left something behind.","Which way is out?","You are not alone."];
 
-function normalizeAngle(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a}
-function isLookingAtTile(tx,ty){const dx=tx+.5-player.x,dy=ty+.5-player.y,d=Math.sqrt(dx*dx+dy*dy);if(d<.1)return true;return(dx/d)*dirX+(dy/d)*dirY>.4}
-
-function updateEvents(dt){
- const now=gameTime;
- // First hallucinated silhouette (early)
- if(!evState._firstSil && now>4+Math.random()*5){triggerSilhouette(true);evState._firstSil=true;evState.lastEvent=now;return}
- // ongoing footstep-behind
- if(evState.footstepActive){
-  evState.footstepTimer-=dt;evState.footstepDuration-=dt;
-  if(evState.footstepTimer<=0){playSpatialFootstepAt(evState.footstepX,evState.footstepY,.4);evState.footstepTimer=evState.footstepSync?.42:(.5+Math.random()*.3)}
-  const dx=evState.footstepX-player.x,dy=evState.footstepY-player.y,d=Math.sqrt(dx*dx+dy*dy);
-  if(d>.1&&((dx/d)*dirX+(dy/d)*dirY)>.2){evState.footstepActive=false;evState.lastEvent=now}
-  if(evState.footstepDuration<=0)evState.footstepActive=false;
- }
- // light off behind
- if(evState.lightOffActive&&evState.lightOffLight){
-  const l=evState.lightOffLight,dx=l.x-player.x,dy=l.y-player.y,d=Math.sqrt(dx*dx+dy*dy);
-  if(d>.1&&((dx/d)*dirX+(dy/d)*dirY)>.5){l.forcedOff=false;evState.lightOffActive=false;evState.lightOffLight=null;evState.lastEvent=now}
- }
- // spatial anomaly (a wall that wasn't there)
- if(evState.anomalyActive&&evState.anomalyTile){
-  if(isLookingAtTile(evState.anomalyTile.x,evState.anomalyTile.y)){tileOverrides.delete(evState.anomalyTile.x+','+evState.anomalyTile.y);evState.anomalyActive=false;evState.anomalyTile=null;evState.lastEvent=now}
- }
- // random atmosphere lines
- if(Math.random()<.0006)showSubtitle(atmosphereMsgs[Math.floor(Math.random()*atmosphereMsgs.length)]);
-
- // hallucinations scale with low sanity
- if(sanity<0.65 && now-evState.lastHallu>8+Math.random()*15){ triggerHallucination(); evState.lastHallu=now; }
-
- // scheduled events
- if(now-evState.lastEvent<evState.cooldown)return;
- const esc=Math.min(1,walkTime/240);
- evState.cooldown=(14-esc*7)+Math.random()*(10-esc*5);
- if(Math.random()<.30+esc*.3)triggerRandomEvent(esc);
+function findSpawnPos(sx, sy) {
+    for (let r = 0; r < 40; r++) {
+        for (let a = 0; a < 16; a++) {
+            const wx = sx + Math.cos(a * 0.3927) * r;
+            const wy = sy + Math.sin(a * 0.3927) * r;
+            const fx = Math.floor(wx), fy = Math.floor(wy);
+            // Подгружаем чанк в точке поиска, иначе getCell вернёт стену
+            ensureChunkAt(fx, fy);
+            if (getCell(fx, fy) === 0) {
+                // убедимся что не в стене и не слишком близко к старту
+                if (dist(wx, wy, 7.5, 7.5) > 4) return { x: wx + 0.5, y: wy + 0.5 };
+            }
+        }
+    }
+    return null;
 }
 
-function triggerRandomEvent(esc){
- const events=['footsteps','flicker','light_off','silhouette','distant','anomaly'];
- const weights=[2,3,2,2,2,1];
- let total=0;for(const w of weights)total+=w;
- let r=Math.random()*total,chosen=events[0];
- for(let i=0;i<events.length;i++){r-=weights[i];if(r<=0){chosen=events[i];break}}
- triggerEvent(chosen,esc);
- evState.lastEvent=gameTime;
-}
-function triggerEvent(type,esc){
- switch(type){
-  case'footsteps':
-   evState.footstepActive=true;evState.footstepTimer=0;evState.footstepDuration=4+Math.random()*5;
-   evState.footstepSync=Math.random()<.4;
-   evState.footstepX=player.x-dirX*1.5;evState.footstepY=player.y-dirY*1.5;
-   if(Math.random()<.3)showSubtitle('You hear footsteps behind you.');break;
-  case'flicker':
-   if(nearbyLights.length>0){
-    const l=nearbyLights[Math.floor(Math.random()*nearbyLights.length)];
-    l.flickerT=0;l.flickerDur=.3+Math.random()*.5;l.flickerAmt=.3+Math.random()*.4;
-    if(audioNodes.buzzG){audioNodes.buzzG.gain.value=.025;setTimeout(()=>{if(audioNodes.buzzG)audioNodes.buzzG.gain.value=0},700+Math.random()*300)}
-    if(Math.random()<.3){const a=Math.atan2(l.y-player.y,l.x-player.x);activeSprites.push({x:l.x+Math.cos(a)*1.5,y:l.y+Math.sin(a)*1.5,opacity:.35,scale:.8,life:.2,maxLife:.2,baseOpacity:.35,darken:true})}
-   } break;
-  case'light_off':{
-   let best=null,bestDot=-2;
-   for(const l of nearbyLights){const dx=l.x-player.x,dy=l.y-player.y,d=Math.sqrt(dx*dx+dy*dy);if(d<1||d>8)continue;const dot=(dx/d)*dirX+(dy/d)*dirY;if(dot<-.3&&dot<bestDot){bestDot=dot;best=l}}
-   if(best){best.forcedOff=true;evState.lightOffActive=true;evState.lightOffLight=best}
-   break}
-  case'silhouette':triggerSilhouette(false);break;
-  case'distant':playDistantNoise();if(Math.random()<.4)showSubtitle('Something echoes in the distance.');break;
-  case'anomaly':{
-   let at=null;
-   for(let r=2;r<6&&!at;r++)for(let a=-Math.PI*.7;a<=-Math.PI*.3;a+=.1){const ang=player.angle+a+Math.PI;const tx=Math.floor(player.x+Math.cos(ang)*r),ty=Math.floor(player.y+Math.sin(ang)*r);if(isWall(tx,ty)){at={x:tx,y:ty};break}}
-   if(at){tileOverrides.set(at.x+','+at.y,0);evState.anomalyActive=true;evState.anomalyTile=at;if(Math.random()<.5)showSubtitle('Was that always there?')}
-   break}
- }
-}
-function triggerSilhouette(first){
- // 90% of silhouettes are hallucinations (not the real stalker)
- const ang=player.angle+(Math.random()-.5)*1.5;
- const dist=first?6+Math.random()*4:8+Math.random()*6;
- const sx=player.x+Math.cos(ang)*dist,sy=player.y+Math.sin(ang)*dist;
- const op=first?.7:(.3+Math.random()*.3);
- activeSprites.push({x:sx,y:sy,opacity:op,scale:1,life:first?2.5:1.5+Math.random()*1.5,maxLife:0,baseOpacity:op,darken:true});
- const s=activeSprites[activeSprites.length-1];s.maxLife=s.life;
- if(!first&&Math.random()<.25)showSubtitle('You see something in the distance.');
-}
-function triggerHallucination(){
- // a brief false silhouette that vanishes when approached/looked-at; raises tension, drains sanity
- const r=Math.random();
- if(r<0.5){triggerSilhouette(false); sanity-=0.03}
- else if(r<0.8){playDistantNoise(); if(Math.random()<.5)showSubtitle('Did you hear that?');}
- else{ // a false wall appears briefly behind player
-  const ang=player.angle+Math.PI+(Math.random()-.5)*1.0;
-  const tx=Math.floor(player.x+Math.cos(ang)*3),ty=Math.floor(player.y+Math.sin(ang)*3);
-  if(!isWall(tx,ty)){tileOverrides.set(tx+','+ty,1);setTimeout(()=>tileOverrides.delete(tx+','+ty),1500)}
- }
-}
-function triggerJumpscare(){
- const ang=player.angle+(Math.random()<.5?1:-1)*(.3+Math.random()*.3);
- activeSprites.push({x:player.x+Math.cos(ang)*1.5,y:player.y+Math.sin(ang)*1.5,opacity:1,scale:2.2,life:.35,maxLife:.35,baseOpacity:1,jumpscare:true,darken:true});
- if(audioCtx){const dur=.5,sr=audioCtx.sampleRate;const buf=audioCtx.createBuffer(1,sr*dur,sr),d=buf.getChannelData(0);for(let i=0;i<d.length;i++){const t=i/d.length;d[i]=(Math.random()*2-1)*Math.exp(-t*3)*.8}const src=audioCtx.createBufferSource();src.buffer=buf;const g=audioCtx.createGain();g.gain.value=.7;src.connect(g).connect(audioNodes.master);src.start()}
- jumpscareFlash=1;
+// Спавн предметов вокруг старта (в пределах 2 чанков — гарантированно в LRU)
+function spawnWorldItems() {
+    items.length = 0;
+    // Кольцевой спавн: детерминированные точки вокруг (7.5,7.5), радиус 4..30
+    function ringPos(seedIdx, minR, maxR) {
+        const ang = hash(seedIdx*13+1, seedIdx*7+3) * Math.PI * 2;
+        const rad = minR + hash(seedIdx*5+9, seedIdx*11+2) * (maxR - minR);
+        const sx = 7.5 + Math.cos(ang) * rad;
+        const sy = 7.5 + Math.sin(ang) * rad;
+        return findSpawnPos(sx, sy);
+    }
+    // 8 документов
+    for (let i = 0; i < 8; i++) { const pos = ringPos(i, 6, 30); if (pos) items.push({ x: pos.x, y: pos.y, type: 'doc', id: i, collected: false }); }
+    // 3 детали генератора
+    for (let i = 0; i < 3; i++) { const pos = ringPos(10 + i, 10, 30); if (pos) items.push({ x: pos.x, y: pos.y, type: 'genPart', id: i, collected: false }); }
+    for (let i = 0; i < 12; i++) { const pos = ringPos(20 + i, 4, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'battery',id:i,collected:false}); }
+    for (let i = 0; i < 4; i++)  { const pos = ringPos(40 + i, 8, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'key',id:i,collected:false}); }
+    for (let i = 0; i < 6; i++)  { const pos = ringPos(50 + i, 5, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'pill',id:i,collected:false}); }
+    for (let i = 0; i < 3; i++)  { const pos = ringPos(60 + i, 8, 28); if(pos) items.push({x:pos.x,y:pos.y,type:'map',id:i,collected:false}); }
+    for (let i = 0; i < 4; i++)  { const pos = ringPos(70 + i, 6, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'photo',id:i,collected:false}); }
+    for (let i = 0; i < 3; i++)  { const pos = ringPos(80 + i, 7, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'tool',id:i,collected:false}); }
 }
 
-// === INTERACTABLES ===
-const NOTE_TEXTS=[
- "Day 4. The lights never turn off. I think they watch.\nI tried to count the rooms. I lost count.\nIf you find this, keep moving. Do not stop.\n\nglenn",
- "RULES:\n1. Do not trust the exits.\n2. If you hear footsteps, do NOT turn around.\n3. The thing is real. It is slow. It learns.\n4. Flashlight keeps it slow. But the dark keeps you hidden.\n\n- T.",
- "It followed me for what felt like an hour.\nI looked at it and it stopped.\nI looked away and it was closer.\nI do not know which is worse.",
- "The map changes when you are not looking.\nI marked the walls. The marks were gone\nwhen I came back. I am somewhere else now.\n\nIf you read this, I am already gone.",
- "SERVER LOG 0x7F:\nANOMALY DETECTED - GEOMETRY SHIFT\nENTITY TRACK - APPROACH VECTOR LOCKED\nRECOMMEND: DO NOT REMAIN STATIONARY.\nDO NOT LOOK DIRECTLY AT IT.\n\ngood luck.",
+// ==================== ДОКУМЕНТЫ ====================
+const DOC_CONTENTS = [
+    { type: 'Доклад', trigger: 'look_back', text: 'Доклад №47\n\nСубъект начал проявлять реакцию на движение. Рекомендуется не оглядываться в коридорах. Он чувствует, когда за ним наблюдают.' },
+    { type: 'Фотография', trigger: 'lights_out', text: '[Фотография повреждена]\n\nНа снимке виден коридор B2. Подпись на обороте: "Свет погаснет в 21:00. Не пытайся найти выход в темноте."' },
+    { type: 'Запись врача', trigger: 'hear_run', text: 'Пациент B2-07\n\nЖалуется на звуки шагов, которые появляются когда он бежит. Рекомендуется перемещаться тихо. Бег привлекает ЕГО.' },
+    { type: 'Карта', trigger: 'none', text: '[Фрагмент карты B2]\n\nГенераторная — сектор 7\nЛифтовая шахта — сектор 12\nКрасные двери — опасная зона\nЗелёные индикаторы — путь к выходу' },
+    { type: 'План эвакуации', trigger: 'none', text: 'ПЛАН ЭВАКУАЦИИ — УРОВЕНЬ B2\n\n1. Собрать документы\n2. Восстановить питание\n3. Активировать лифт\n\nВНИМАНИЕ: Не используйте аварийные двери без необходимости. Звук привлекает объект.' },
+    { type: 'Дневник', trigger: 'flashlight', text: 'День 14\n\nФонарь — единственное, что он не любит. Но будь осторожен — он учится. Сначала не реагировал на свет, теперь избегает его. Что дальше?' },
+    { type: 'Аудиокассета', trigger: 'door_slam', text: '[Запись на плёнке]\n\n"...слышишь? Двери... они закрываются сами. Сначала далеко, потом ближе. Он загоняет тебя в ловушку. Не заходи в тупики..."' },
+    { type: 'Отчёт', trigger: 'red_doors', text: 'ОТЧЁТ ОБ ОБЪЕКТЕ B2-ENT\n\nОбъект научился открывать металлические двери. Красные двери — его территория. Не входите. Повторяю: НЕ ВХОДИТЕ В КРАСНЫЕ ДВЕРИ.' }
 ];
-function interact(){
- if(interactTarget){
-  const t=interactTarget;
-  if(t.type===3){ openNote(t.x,t.y); }
-  else if(t.type===2){ // door: toggle open/closed
-   const k=t.x+','+t.y; const cur=tileOverrides.get(k);
-   if(cur===undefined){ if(rawTile(t.x,t.y)===2){tileOverrides.set(k,0); playDoor(false)} }
-   else if(cur===0){tileOverrides.set(k,2); playDoor(true)} // re-close (rare)
-   else if(cur===2){tileOverrides.set(k,0); playDoor(false)}
-   else if(cur===1){tileOverrides.set(k,0); playDoor(false)}
-  }
-  else if(t.type===4){ // exit marker -> relocate to a "new area"
-   showSubtitle('You descend. The walls shift around you.');
-   flashScreen(1);
-   setTimeout(()=>{
-    for(let i=0;i<60;i++){const a=Math.random()*Math.PI*2,dist=40+Math.random()*60;const tx=Math.floor(player.x+Math.cos(a)*dist),ty=Math.floor(player.y+Math.sin(a)*dist);if(!isWall(tx,ty)){player.x=tx+0.5;player.y=ty+0.5;player.angle=a+Math.PI;break}}
-    sanity=Math.max(0,sanity-0.1); flashScreen(0); updateNearbyLights();
-   },800);
-  }
- }
-}
-function openNote(x,y){
- const idx=hash2D(x*3+1,y*3+7)*NOTE_TEXTS.length|0;
- const el=noteOverlayEl.querySelector('.paper');
- el.firstChild?el.removeChild(el.firstChild):null;
- el.textContent=NOTE_TEXTS[idx%NOTE_TEXTS.length];
- const sig=document.createElement('span');sig.className='sig';sig.textContent='— found: '+Math.floor(x)+', '+Math.floor(y);el.appendChild(sig);
- noteOverlayEl.style.display='flex';
- mouseLocked=false; if(document.pointerLockElement)document.exitPointerLock();
- sanity=Math.min(1,sanity+0.04);
-}
-function closeNote(){ noteOverlayEl.style.display='none'; if(started)canvas.requestPointerLock(); }
+let activeTrigger = null;
+let triggerTimer = 0;
+let docReadFlags = new Set();
 
-function findInteractTarget(){
- // raycast a short forward probe for interactable tile
- const steps=8, reach=1.6;
- for(let i=1;i<=steps;i++){
-  const d=reach*i/steps;
-  const tx=Math.floor(player.x+dirX*d), ty=Math.floor(player.y+dirY*d);
-  const t=tileTypeAt(tx,ty);
-  if(t===2||t===3||t===4)return {x:tx,y:ty,type:t};
-  if(isSolidForMove(tx,ty))return null; // blocked by solid wall
- }
- return null;
+function readDocument(doc) {
+    if (docReadFlags.has(doc.id)) return;
+    docReadFlags.add(doc.id);
+    const content = DOC_CONTENTS[doc.id];
+    if (!content) return;
+    const ui = document.getElementById('doc-ui');
+    ui.querySelector('.doc-type').textContent = content.type;
+    ui.querySelector('.doc-text').textContent = content.text;
+    ui.style.display = 'flex';
+    gameState = 'reading';
+    objectives.docsCollected++;
+    if (content.trigger !== 'none') { activeTrigger = content.trigger; triggerTimer = 8 + Math.random() * 15; }
+    onProgressChanged();
+    updateHUD();
+    saveGame();
 }
 
-// === SANITY ===
-function updateSanity(dt){
- // slow passive drain the longer you stay; faster in the dark
- let drain=0.002;
- if(!flashlightOn||flashlightBattery<=0)drain+=0.004;
- if(sanity<0.3)drain*=1.5; // spiral
- sanity=Math.max(0,Math.min(1,sanity-dt*drain*sanityDrainMul));
- // battery drain for flashlight
- if(flashlightOn&&flashlightBattery>0){flashlightBattery=Math.max(0,flashlightBattery-dt*0.004)}
- else if(!flashlightOn&&flashlightBattery<1){flashlightBattery=Math.min(1,flashlightBattery+dt*0.0006)} // very slow recharge off
+// ==================== ГЕНЕРАТОР И ЛИФТ ====================
+const generator = { x: 0, y: 0, active: false };
+const elevator = { x: 0, y: 0, active: false, timer: 0, finalPhase: false };
+
+function placeGeneratorAndElevator() {
+    const gp = findSpawnPos(7.5 + 18, 7.5 - 6);
+    if (gp) { generator.x = gp.x; generator.y = gp.y; }
+    else { const gp2 = findSpawnPos(7.5+12, 7.5+10); if(gp2){generator.x=gp2.x;generator.y=gp2.y;} }
+    const ep = findSpawnPos(7.5 - 16, 7.5 + 14);
+    if (ep) { elevator.x = ep.x; elevator.y = ep.y; }
+    else { const ep2 = findSpawnPos(7.5-10, 7.5-8); if(ep2){elevator.x=ep2.x;elevator.y=ep2.y;} }
 }
 
-// === LIGHT UPDATE ===
-function updateLights(dt){
- const t=gameTime;
- for(const l of nearbyLights){
-  if(l.forcedOff){l.curI=0;continue}
-  const nf=1+Math.sin(t*7+l.phase)*.012+Math.sin(t*13+l.phase*2)*.006;
-  let ff=1;
-  if(l.flickerDur>0){
-   l.flickerT+=dt;
-   if(l.flickerT>=l.flickerDur){l.flickerDur=0;l.flickerAmt=0}
-   else{const pr=l.flickerT/l.flickerDur;const ns=Math.sin(l.flickerT*40)*.5+Math.sin(l.flickerT*67)*.5;ff=1-l.flickerAmt*(.5+ns*.5)*Math.sin(pr*Math.PI)}
-  }
-  l.curI=l.baseI*nf*ff;
- }
- // sprite lifetimes
- for(let i=activeSprites.length-1;i>=0;i--){
-  const s=activeSprites[i];s.life-=dt;
-  if(s.life<=0)activeSprites.splice(i,1);
-  else if(!s.jumpscare)s.opacity=s.baseOpacity*(s.life/s.maxLife);
- }
- if(jumpscareFlash>0){jumpscareFlash-=dt*3;if(jumpscareFlash<0)jumpscareFlash=0}
+// ==================== ЦЕЛИ ====================
+const objectives = {
+    docsCollected: 0,
+    genParts: 0,
+    powerOn: false,
+    elevatorOpen: false
+};
+
+function updateHUD() {
+    document.getElementById('hud-docs').querySelector('span').textContent = objectives.docsCollected + ' / 8';
+    document.getElementById('hud-gen').querySelector('span').textContent = objectives.genParts + ' / 3';
+    const pw = document.getElementById('hud-power');
+    pw.querySelector('span').textContent = objectives.powerOn ? 'ON' : 'OFF';
+    pw.className = 'hud-item ' + (objectives.powerOn ? 'on' : 'off');
+    const lf = document.getElementById('hud-lift');
+    if (elevator.finalPhase) {
+        lf.querySelector('span').textContent = 'Приезжает... ' + Math.max(0, Math.ceil(elevator.timer)) + 'с';
+        lf.className = 'hud-item warn';
+    } else if (objectives.powerOn) {
+        lf.querySelector('span').textContent = 'Готов';
+        lf.className = 'hud-item on';
+    } else {
+        lf.querySelector('span').textContent = 'Заблокирован';
+        lf.className = 'hud-item off';
+    }
+    const hb = document.getElementById('hud-health-bar');
+    hb.style.width = clamp(player.health, 0, 100) + '%';
+    document.getElementById('hud-batt').textContent = 'Батарея фонаря: ' + Math.round(player.flashBattery) + '%';
+    document.getElementById('stamina-bar').style.width = (player.stamina * 100) + '%';
 }
 
-// === SUBTITLES / PROMPT / FLASH ===
-let subtitleTimer=0,subtitleEl;
-function showSubtitle(text,dur=4){subtitleEl.textContent=text;subtitleEl.classList.add('show');subtitleTimer=dur}
-function updateSubtitles(dt){if(subtitleTimer>0){subtitleTimer-=dt;if(subtitleTimer<=0)subtitleEl.classList.remove('show')}}
-function setPrompt(text){if(text){promptEl.textContent=text;promptEl.classList.add('show')}else promptEl.classList.remove('show')}
-function flashScreen(v){flashEl.style.opacity=v}
-
-// === AUDIO ===
-function initAudio(){
- if(audioCtx)return;
- audioCtx=new(window.AudioContext||window.webkitAudioContext)();
- const m=audioCtx.createGain();m.gain.value=.5;m.connect(audioCtx.destination);
- const h1=audioCtx.createOscillator();h1.frequency.value=58;h1.type='sine';const h1g=audioCtx.createGain();h1g.gain.value=.14;h1.connect(h1g).connect(m);h1.start();
- const h2=audioCtx.createOscillator();h2.frequency.value=116;h2.type='sine';const h2g=audioCtx.createGain();h2g.gain.value=.07;h2.connect(h2g).connect(m);h2.start();
- const sw=audioCtx.createOscillator();sw.frequency.value=58;sw.type='sawtooth';const sf=audioCtx.createBiquadFilter();sf.type='lowpass';sf.frequency.value=180;const sg=audioCtx.createGain();sg.gain.value=.022;sw.connect(sf).connect(sg).connect(m);sw.start();
- const wh=audioCtx.createOscillator();wh.frequency.value=15500;wh.type='sine';const wg=audioCtx.createGain();wg.gain.value=.004;wh.connect(wg).connect(m);wh.start();
- const bz=audioCtx.createOscillator();bz.type='square';bz.frequency.value=120;const bzg=audioCtx.createGain();bzg.gain.value=0;bz.connect(bzg).connect(m);bz.start();
- // continuous stalker breath bus (modulated)
- const br=audioCtx.createOscillator();br.frequency.value=120;br.type='sawtooth';const brf=audioCtx.createBiquadFilter();brf.type='lowpass';brf.frequency.value=400;const brg=audioCtx.createGain();brg.gain.value=0;br.connect(brf).connect(brg).connect(m);br.start();
- audioNodes={master:m,hum1g:h1g,hum2g:h2g,sawG:sg,whineG:wg,buzzG:bzg,buzz:bz,breathG:brg,breath:br};
- updateAudioListener();
-}
-function updateAudioListener(){
- if(!audioCtx)return;const l=audioCtx.listener;
- if(l.positionX){l.positionX.value=player.x;l.positionY.value=0;l.positionZ.value=player.y;l.forwardX.value=dirX;l.forwardY.value=0;l.forwardZ.value=dirY;l.upX.value=0;l.upY.value=1;l.upZ.value=0}
- else{l.setPosition(player.x,0,player.y);l.setOrientation(dirX,0,dirY,0,1,0)}
-}
-function noiseBuffer(dur,sr){const buf=audioCtx.createBuffer(1,sr*dur,sr),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return buf}
-function playFootstep(){
- if(!audioCtx)return;const sr=audioCtx.sampleRate;const buf=noiseBuffer(.08,sr),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]*=(1-i/d.length)*.5;
- const src=audioCtx.createBufferSource();src.buffer=buf;const f=audioCtx.createBiquadFilter();f.type='lowpass';f.frequency.value=350;const g=audioCtx.createGain();g.gain.value=.16;src.connect(f).connect(g).connect(audioNodes.master);src.start();
-}
-function playSpatialFootstepAt(x,y,intensity){
- if(!audioCtx)return;const sr=audioCtx.sampleRate;const buf=noiseBuffer(.12,sr),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]*=(1-i/d.length)*intensity;
- const src=audioCtx.createBufferSource();src.buffer=buf;const f=audioCtx.createBiquadFilter();f.type='lowpass';f.frequency.value=300;
- const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=1;p.maxDistance=15;
- if(p.positionX){p.positionX.value=x;p.positionY.value=0;p.positionZ.value=y}else p.setPosition(x,0,y);
- const g=audioCtx.createGain();g.gain.value=.35;src.connect(f).connect(g).connect(p).connect(audioNodes.master);src.start();
-}
-function playBreath(dist){
- if(!audioCtx||!audioNodes.breathG)return;
- // short puff of filtered noise, panned at stalker pos
- const sr=audioCtx.sampleRate;const buf=noiseBuffer(.5,sr),d=buf.getChannelData(0);
- for(let i=0;i<d.length;i++){const t=i/d.length;const env=Math.sin(t*Math.PI);d[i]*=env*0.5}
- const src=audioCtx.createBufferSource();src.buffer=buf;const f=audioCtx.createBiquadFilter();f.type='bandpass';f.frequency.value=300;f.Q.value=2;
- const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=1;p.maxDistance=20;
- const sx=stalker.x,sz=stalker.y;
- if(p.positionX){p.positionX.value=sx;p.positionY.value=0;p.positionZ.value=sz}else p.setPosition(sx,0,sz);
- const g=audioCtx.createGain();g.gain.value=Math.min(.5,2/Math.max(1,dist));
- src.connect(f).connect(p).connect(g).connect(audioNodes.master);src.start();
-}
-function playDistantNoise(){
- if(!audioCtx)return;const dur=.5+Math.random()*1,sr=audioCtx.sampleRate;const buf=noiseBuffer(dur,sr),d=buf.getChannelData(0);for(let i=0;i<d.length;i++){const t=i/d.length;d[i]*=(1-t)*.3*(.5+Math.sin(t*10)*.5)}
- const src=audioCtx.createBufferSource();src.buffer=buf;const f=audioCtx.createBiquadFilter();f.type='lowpass';f.frequency.value=500;
- const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=5;p.maxDistance=100;
- const a=player.angle+Math.PI+(Math.random()-.5)*2,dist=15+Math.random()*20;const sx=player.x+Math.cos(a)*dist,sz=player.y+Math.sin(a)*dist;
- if(p.positionX){p.positionX.value=sx;p.positionY.value=0;p.positionZ.value=sz}else p.setPosition(sx,0,sz);
- const g=audioCtx.createGain();g.gain.value=.3;src.connect(f).connect(p).connect(g).connect(audioNodes.master);src.start();
-}
-function playFlashlightClick(){
- if(!audioCtx)return;const sr=audioCtx.sampleRate;const buf=noiseBuffer(.05,sr),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]*=Math.exp(-i/d.length*5);
- const src=audioCtx.createBufferSource();src.buffer=buf;const f=audioCtx.createBiquadFilter();f.type='highpass';f.frequency.value=2000;const g=audioCtx.createGain();g.gain.value=.1;src.connect(f).connect(g).connect(audioNodes.master);src.start();
-}
-function playDoor(closing){
- if(!audioCtx)return;const sr=audioCtx.sampleRate;const dur=.4;const buf=audioCtx.createBuffer(1,sr*dur,sr),d=buf.getChannelData(0);
- for(let i=0;i<d.length;i++){const t=i/d.length;d[i]=(Math.random()*2-1)*.3*Math.exp(-t*3)+Math.sin(t*120)*.1}
- const src=audioCtx.createBufferSource();src.buffer=buf;const f=audioCtx.createBiquadFilter();f.type='lowpass';f.frequency.value=closing?500:800;const g=audioCtx.createGain();g.gain.value=.2;src.connect(f).connect(g).connect(audioNodes.master);src.start();
-}
-function playChaseStinger(){
- if(!audioCtx)return;const sr=audioCtx.sampleRate;const dur=1.0;const buf=audioCtx.createBuffer(1,sr*dur,sr),d=buf.getChannelData(0);
- for(let i=0;i<d.length;i++){const t=i/d.length;d[i]=((Math.random()*2-1)*.4+Math.sin(t*60*2*Math.PI)*.2)*Math.exp(-t*1.5)}
- const src=audioCtx.createBufferSource();src.buffer=buf;const g=audioCtx.createGain();g.gain.value=.6;src.connect(g).connect(audioNodes.master);src.start();
+// Прогресс меняет мир/монстра/опасность
+function onProgressChanged() {
+    const d = objectives.docsCollected;
+    // 2 док -> чаще события
+    if (d === 2) { eventCooldown = Math.min(eventCooldown, 30); }
+    // 4 док -> монстр быстрее
+    // 6 док -> двери могут закрываться (slamTimer)
 }
 
-// === INPUT (FIXED mouse inversion + pitch) ===
-function setupInput(){
- document.addEventListener('keydown',e=>{
-  keys[e.code]=true;
-  if(e.code==='KeyF'){flashlightOn=!flashlightOn;playFlashlightClick()}
-  if(e.code==='KeyE'){ if(noteOverlayEl.style.display==='flex'){closeNote()} else interact(); }
- });
- document.addEventListener('keyup',e=>{keys[e.code]=false});
- // === FIX: moving mouse RIGHT (movementX>0) turns RIGHT (angle increases) ===
- // Old code had `player.angle -= e.movementX` which inverted it.
- document.addEventListener('mousemove',e=>{
-  if(!mouseLocked)return;
-  player.angle += e.movementX*0.0022;            // FIXED: right = right
-  player.pitchPix -= e.movementY*0.9;            // up = look up (move mouse up => pitch up)
-  const lim=H*0.5;
-  if(player.pitchPix>lim)player.pitchPix=lim;
-  if(player.pitchPix<-lim)player.pitchPix=-lim;
- });
- document.addEventListener('pointerlockchange',()=>{mouseLocked=document.pointerLockElement===canvas});
- canvas.addEventListener('click',()=>{if(!mouseLocked&&started&&noteOverlayEl.style.display!=='flex')canvas.requestPointerLock()});
- document.getElementById('startScreen').addEventListener('click',()=>{
-  document.getElementById('startScreen').style.display='none';
-  started=true;canvas.requestPointerLock();initAudio();loadGame();stalkerInit();
- });
- noteOverlayEl.addEventListener('click',closeNote);
- document.addEventListener('visibilitychange',()=>{if(audioCtx){if(document.hidden)audioCtx.suspend();else audioCtx.resume()}});
- window.addEventListener('beforeunload',saveGame);
+function showPrompt(text) {
+    const p = document.getElementById('interact-prompt');
+    p.textContent = text;
+    p.style.display = 'block';
+    clearTimeout(p._timer);
+    p._timer = setTimeout(() => p.style.display = 'none', 3000);
+}
+function showSubtitle(text, dur) {
+    const s = document.getElementById('subtitle');
+    s.textContent = text;
+    s.style.display = 'block';
+    clearTimeout(s._timer);
+    s._timer = setTimeout(() => s.style.display = 'none', (dur||3000));
+}
+// ==================== ИГРОК ====================
+const player = {
+    x: 7.5, y: 7.5, angle: 0, pitch: 0,
+    health: 100, running: false, crouching: false,
+    flashlightOn: true, flashBattery: 100,
+    batteries: 0, keys: 0, pills: 0, maps: 0, tools: 0,
+    bobPhase: 0, bobAmount: 0, headBob: 0, crouchLerp: 0,
+    footstepTimer: 0, stamina: 1.0,
+    _lookAtDoor: null, _lookAtDist: 100, _lookAtCell: 1,
+    _lookItem: null, _lookGen: false, _lookLift: false
+};
+const input = { forward:false, back:false, left:false, right:false, sprint:false, crouch:false, interact:false, flashlight:false };
+let mouseDX = 0, mouseDY = 0;
+
+function updatePlayer(dt) {
+    // Вращение
+    const sensMul = (CFG.sens || 5) / 5;
+    player.angle += mouseDX * CFG.mouseSens * sensMul;
+    player.pitch = clamp(player.pitch - mouseDY * CFG.mouseSens * sensMul, -0.5, 0.5);
+    mouseDX = 0; mouseDY = 0;
+
+    // Приседание плавное
+    player.crouching = input.crouch;
+    player.crouchLerp = lerp(player.crouchLerp, player.crouching ? 1 : 0, dt * 8);
+
+    // Выносливость
+    const wantRun = input.sprint && input.forward && player.stamina > 0.05 && !player.crouching;
+    if (wantRun) player.stamina = Math.max(0, player.stamina - dt * 0.35);
+    else player.stamina = Math.min(1, player.stamina + dt * 0.25);
+
+    const baseSpeed = wantRun ? CFG.runSpeed : (player.crouching ? CFG.crouchSpeed : CFG.moveSpeed);
+    const speed = baseSpeed * dt;
+    player.running = wantRun && (input.forward||input.back||input.left||input.right);
+
+    let dx = 0, dy = 0;
+    if (input.forward) { dx += Math.cos(player.angle)*speed; dy += Math.sin(player.angle)*speed; }
+    if (input.back)    { dx -= Math.cos(player.angle)*speed; dy -= Math.sin(player.angle)*speed; }
+    if (input.left)    { dx += Math.cos(player.angle-1.5708)*speed; dy += Math.sin(player.angle-1.5708)*speed; }
+    if (input.right)   { dx += Math.cos(player.angle+1.5708)*speed; dy += Math.sin(player.angle+1.5708)*speed; }
+
+    if (canWalk(player.x + dx, player.y)) player.x += dx;
+    if (canWalk(player.x, player.y + dy)) player.y += dy;
+
+    // Head bob
+    const moving = Math.abs(dx)+Math.abs(dy) > 0.001;
+    if (moving) {
+        const bobSpeed = player.running ? 12 : (player.crouching ? 6 : 8);
+        player.bobPhase += dt * bobSpeed;
+        player.bobAmount = lerp(player.bobAmount, player.running?0.06:(player.crouching?0.02:0.03), dt*5);
+        player.footstepTimer -= dt * (player.running?1.6:1.0);
+        if (player.footstepTimer <= 0) { playPositionalSound('step', player.x, player.y, player.running); player.footstepTimer = player.running?0.32:0.45; }
+    } else {
+        player.bobAmount = lerp(player.bobAmount, 0, dt*5);
+    }
+    player.headBob = Math.sin(player.bobPhase) * player.bobAmount;
+
+    // Фонарь — батарея
+    if (player.flashlightOn) {
+        player.flashBattery -= dt * CFG.flashlightDrain;
+        if (player.flashBattery <= 0) { player.flashBattery = 0; player.flashlightOn = false; }
+    }
+
+    // Подбор предметов
+    for (const item of items) {
+        if (item.collected) continue;
+        if (dist(player.x, player.y, item.x, item.y) < 0.7) {
+            item.collected = true;
+            if (item.type === 'doc') { readDocument(item); }
+            else if (item.type === 'genPart') { objectives.genParts++; showPrompt('Деталь генератора ('+objectives.genParts+'/3)'); playSound('pickup'); }
+            else if (item.type === 'battery') { player.batteries++; player.flashBattery = Math.min(100, player.flashBattery+35); showPrompt('Батарейка (+заряд фонаря)'); playSound('pickup'); }
+            else if (item.type === 'key')     { player.keys++; showPrompt('Ключ подобран'); playSound('pickup'); }
+            else if (item.type === 'pill')    { player.pills++; player.health = Math.min(100, player.health+25); showPrompt('Таблетки (+здоровье)'); playSound('pickup'); }
+            else if (item.type === 'map')     { player.maps++; showPrompt('Карта местности'); playSound('pickup'); }
+            else if (item.type === 'photo')   { showPrompt('Старая фотография...'); playSound('pickup'); }
+            else if (item.type === 'tool')    { player.tools++; showPrompt('Инструмент'); playSound('pickup'); }
+            updateHUD(); saveGame();
+        }
+    }
+
+    // Использование таблетки (H)
+    // обработано в keydown
+
+    // Генератор
+    if (dist(player.x, player.y, generator.x, generator.y) < 1.5 && !generator.active) {
+        if (input.interact) {
+            if (objectives.genParts >= 3) {
+                generator.active = true; objectives.powerOn = true;
+                showPrompt('Питание восстановлено!'); playSound('generator_on');
+                triggerEvent('power_on'); onProgressChanged(); updateHUD(); saveGame();
+            } else {
+                showPrompt('Нужно '+objectives.genParts+'/3 деталей');
+            }
+        }
+    }
+    // Лифт
+    if (dist(player.x, player.y, elevator.x, elevator.y) < 1.5) {
+        if (objectives.powerOn && !elevator.finalPhase && input.interact) {
+            elevator.finalPhase = true; elevator.timer = 18;
+            showPrompt('Лифт вызван! Держитесь!'); playSound('elevator_call');
+            startFinalPhase();
+        } else if (!objectives.powerOn && input.interact) {
+            showPrompt('Лифт заблокирован. Нет питания.');
+        }
+    }
+
+    // Финальная фаза
+    if (elevator.finalPhase) {
+        elevator.timer -= dt;
+        if (elevator.timer <= 0 && !elevator.active) { elevator.active = true; gameState = 'won'; saveGame(); }
+    }
+
+    input.interact = false;
 }
 
-// === PLAYER ===
-function updatePlayer(dt){
- const spd=isRunning?4.0:2.6,rs=1.8;
- let mx=0,my=0;isMoving=false;isRunning=!!keys['ShiftLeft']||!!keys['ShiftRight'];
- if(keys['KeyW']||keys['ArrowUp']){mx+=dirX;my+=dirY;isMoving=true}
- if(keys['KeyS']||keys['ArrowDown']){mx-=dirX;my-=dirY;isMoving=true}
- if(keys['KeyA']){mx-=planeX/FOV;my-=planeY/FOV;isMoving=true}
- if(keys['KeyD']){mx+=planeX/FOV;my+=planeY/FOV;isMoving=true}
- if(keys['ArrowLeft'])player.angle-=rs*dt;
- if(keys['ArrowRight'])player.angle+=rs*dt;
- if(mx!==0||my!==0){
-  const len=Math.sqrt(mx*mx+my*my);mx=mx/len*spd*dt;my=my/len*spd*dt;
-  const mg=.22;
-  if(!isSolidForMove(Math.floor(player.x+mx+Math.sign(mx)*mg),Math.floor(player.y)))player.x+=mx;
-  if(!isSolidForMove(Math.floor(player.x),Math.floor(player.y+my+Math.sign(my)*mg)))player.y+=my;
- }
- dirX=Math.cos(player.angle);dirY=Math.sin(player.angle);
- planeX=-Math.sin(player.angle)*FOV;planeY=Math.cos(player.angle)*FOV;
- if(isMoving){footstepTimer-=dt;if(footstepTimer<=0){playFootstep();footstepTimer=isRunning?.30:.42}}
- else footstepTimer=0;
- if(isMoving)walkTime+=dt;
+// ==================== A* PATHFINDING ====================
+// Простая сетка A* с обходом стен и дверей. Ограниченный радиус для производительности.
+function astar(sx, sy, tx, ty, maxNodes) {
+    maxNodes = maxNodes || 400;
+    const start = { x: Math.floor(sx), y: Math.floor(sy) };
+    const goal = { x: Math.floor(tx), y: Math.floor(ty) };
+    if (start.x === goal.x && start.y === goal.y) return [{x:start.x,y:start.y}];
+
+    const open = [];
+    const cameFrom = new Map();
+    const gScore = new Map();
+    const key = (n) => n.x + ',' + n.y;
+    const h = (n) => Math.abs(n.x-goal.x) + Math.abs(n.y-goal.y);
+
+    const sk = key(start);
+    gScore.set(sk, 0);
+    open.push({ x: start.x, y: start.y, f: h(start) });
+    let visited = 0;
+
+    while (open.length > 0 && visited < maxNodes) {
+        // найти минимальный f
+        let bi = 0;
+        for (let i = 1; i < open.length; i++) if (open[i].f < open[bi].f) bi = i;
+        const cur = open.splice(bi, 1)[0];
+        const ck = key(cur);
+        visited++;
+        if (cur.x === goal.x && cur.y === goal.y) {
+            // восстановить путь
+            const path = [{x:cur.x,y:cur.y}];
+            let k = ck;
+            while (cameFrom.has(k)) {
+                const p = cameFrom.get(k);
+                path.unshift({x:p.x,y:p.y});
+                k = key(p);
+            }
+            return path;
+        }
+        // соседи
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [dx,dy] of dirs) {
+            const nx = cur.x+dx, ny = cur.y+dy;
+            const c = getCell(nx, ny);
+            if (c === 1) continue;
+            // двери проходимы если открыты
+            if (c >= 2 && c <= 6) { const d = doors.get(nx+','+ny); if (!d || d.openAmount < 0.75) continue; }
+            const nk = nx+','+ny;
+            const tentG = (gScore.get(ck)||0) + 1;
+            if (tentG < (gScore.get(nk) || Infinity)) {
+                cameFrom.set(nk, {x:cur.x,y:cur.y});
+                gScore.set(nk, tentG);
+                open.push({ x:nx, y:ny, f: tentG + h({x:nx,y:ny}) });
+            }
+        }
+    }
+    return null; // путь не найден
 }
 
-// === SAVE/LOAD ===
-function saveGame(){try{localStorage.setItem('backrooms_save',JSON.stringify({x:player.x,y:player.y,angle:player.angle,time:gameTime,walkTime:walkTime,sanity:sanity}))}catch(e){}}
-function loadGame(){try{const s=localStorage.getItem('backrooms_save');if(s){const d=JSON.parse(s);player.x=d.x;player.y=d.y;player.angle=d.angle;gameTime=d.time||0;walkTime=d.walkTime||0;if(typeof d.sanity==='number')sanity=d.sanity}}catch(e){}}
+// ==================== МОНСТР ====================
+const monster = {
+    x: 25, y: 25, angle: 0,
+    state: 'idle', // idle, heard, searching, near, chasing, lost
+    speed: 1.5, stateTimer: 0,
+    heardPos: null, lastKnownX: 0, lastKnownY: 0,
+    patrolTarget: null, path: null, pathIdx: 0, pathTimer: 0,
+    alertLevel: 0, canOpenDoors: false,
+    reactsToFlashlight: false, reactsToRunning: false,
+    growlTimer: 0
+};
 
-// === INIT ===
+function hasLineOfSight(x1, y1, x2, y2) {
+    const d = dist(x1, y1, x2, y2);
+    const steps = Math.ceil(d * 3);
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = Math.floor(lerp(x1, x2, t));
+        const cy = Math.floor(lerp(y1, y2, t));
+        const c = getCell(cx, cy);
+        if (c === 1) return false;
+        if (c >= 2 && c <= 6) { const door = doors.get(cx+','+cy); if (door && door.openAmount < 0.5) return false; }
+    }
+    return true;
+}
+
+function moveMonsterAlongPath(speed, dt) {
+    if (!monster.path || monster.pathIdx >= monster.path.length) return false;
+    const node = monster.path[monster.pathIdx];
+    const tx = node.x + 0.5, ty = node.y + 0.5;
+    const dx = tx - monster.x, dy = ty - monster.y;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if (d < 0.3) { monster.pathIdx++; return true; }
+    monster.angle = Math.atan2(dy, dx);
+    const step = Math.min(d, speed * dt);
+    const nx = monster.x + (dx/d) * step;
+    const ny = monster.y + (dy/d) * step;
+    // Коллизия для монстра (может открывать двери)
+    const mcx = Math.floor(nx), mcy = Math.floor(ny);
+    const c = getCell(mcx, mcy);
+    if (c === 0) { monster.x = nx; monster.y = ny; }
+    else if (c >= 2 && c <= 6) {
+        const door = doors.get(mcx+','+mcy);
+        if (door && door.openAmount >= 0.75) { monster.x = nx; monster.y = ny; }
+        else if (monster.canOpenDoors) { door.opening = true; door.closing = false; }
+    } else {
+        // пробуем по одной оси
+        if (getCell(Math.floor(nx), Math.floor(monster.y)) === 0) monster.x = nx;
+        else if (getCell(Math.floor(monster.x), Math.floor(ny)) === 0) monster.y = ny;
+    }
+    return true;
+}
+
+function updateMonster(dt) {
+    const d = dist(monster.x, monster.y, player.x, player.y);
+    monster.alertLevel = Math.min(1, objectives.docsCollected / 8);
+    monster.speed = 1.5 + monster.alertLevel * 1.4 + (elevator.finalPhase ? 1.0 : 0);
+    monster.canOpenDoors = objectives.docsCollected >= 6 || elevator.finalPhase;
+    monster.reactsToFlashlight = objectives.docsCollected >= 3;
+    monster.reactsToRunning = objectives.docsCollected >= 4;
+
+    let hearDist = 6;
+    if (player.running) hearDist = monster.reactsToRunning ? 16 : 11;
+    if (player.flashlightOn && monster.reactsToFlashlight) hearDist = Math.max(hearDist, 13);
+    if (player.crouching) hearDist *= 0.5;
+
+    const canSee = d < 22 && hasLineOfSight(monster.x, monster.y, player.x, player.y);
+    const canHear = d < hearDist;
+    monster.stateTimer -= dt;
+    monster.growlTimer -= dt;
+
+    switch (monster.state) {
+        case 'idle':
+            if (canSee) { monster.state='chasing'; monster.stateTimer=8; break; }
+            if (canHear) { monster.state='heard'; monster.stateTimer=5; monster.heardPos={x:player.x,y:player.y}; break; }
+            if (!monster.patrolTarget || dist(monster.x,monster.y,monster.patrolTarget.x,monster.patrolTarget.y)<1.5) {
+                const a = Math.random()*Math.PI*2, r = 6+Math.random()*14;
+                monster.patrolTarget = { x: monster.x+Math.cos(a)*r, y: monster.y+Math.sin(a)*r };
+                monster.path = null; monster.pathIdx = 0;
+            }
+            monster.pathTimer -= dt;
+            if (monster.pathTimer <= 0 || !monster.path) {
+                monster.path = astar(monster.x, monster.y, monster.patrolTarget.x, monster.patrolTarget.y, 200);
+                monster.pathIdx = 0; monster.pathTimer = 2;
+            }
+            moveMonsterAlongPath(monster.speed*0.4, dt);
+            break;
+        case 'heard':
+            if (canSee) { monster.state='chasing'; monster.stateTimer=8; break; }
+            if (monster.heardPos) {
+                monster.pathTimer -= dt;
+                if (monster.pathTimer <= 0) { monster.path = astar(monster.x,monster.y,monster.heardPos.x,monster.heardPos.y,250); monster.pathIdx=0; monster.pathTimer=1.5; }
+                moveMonsterAlongPath(monster.speed*0.7, dt);
+                if (dist(monster.x,monster.y,monster.heardPos.x,monster.heardPos.y) < 1.2) { monster.state='searching'; monster.stateTimer=6; }
+            }
+            if (monster.stateTimer <= 0) { monster.state='searching'; monster.stateTimer=6; }
+            break;
+        case 'searching':
+            if (canSee) { monster.state='chasing'; monster.stateTimer=8; break; }
+            if (canHear) { monster.state='heard'; monster.stateTimer=5; monster.heardPos={x:player.x,y:player.y}; break; }
+            monster.pathTimer -= dt;
+            if (monster.pathTimer <= 0) { monster.path = astar(monster.x,monster.y,monster.lastKnownX,monster.lastKnownY,250); monster.pathIdx=0; monster.pathTimer=2; }
+            moveMonsterAlongPath(monster.speed*0.55, dt);
+            if (monster.stateTimer <= 0) monster.state = 'lost';
+            break;
+        case 'near':
+            if (canSee) { monster.state='chasing'; monster.stateTimer=8; break; }
+            monster.state='searching'; monster.stateTimer=5;
+            break;
+        case 'chasing':
+            monster.lastKnownX = player.x; monster.lastKnownY = player.y;
+            monster.pathTimer -= dt;
+            if (monster.pathTimer <= 0) { monster.path = astar(monster.x,monster.y,player.x,player.y,350); monster.pathIdx=0; monster.pathTimer=0.6; }
+            moveMonsterAlongPath(monster.speed, dt);
+            // Прямое преследование при LOS — быстрее и точнее
+            if (canSee) {
+                const dx = player.x-monster.x, dy = player.y-monster.y, dd=Math.sqrt(dx*dx+dy*dy);
+                if (dd > 0.01) {
+                    monster.angle = Math.atan2(dy,dx);
+                    const step = Math.min(dd, monster.speed*dt);
+                    const nx = monster.x + (dx/dd)*step, ny = monster.y + (dy/dd)*step;
+                    const c = getCell(Math.floor(nx),Math.floor(ny));
+                    if (c === 0) { monster.x=nx; monster.y=ny; }
+                    else if (c>=2&&c<=6){ const dr=doors.get(Math.floor(nx)+','+Math.floor(ny)); if(dr&&dr.openAmount>=0.75){monster.x=nx;monster.y=ny;} else if(monster.canOpenDoors){dr.opening=true;dr.closing=false;} }
+                }
+                monster.stateTimer = 8;
+            } else {
+                monster.stateTimer -= dt;
+                if (monster.stateTimer <= 0) monster.state = 'searching';
+            }
+            if (d < 0.8) {
+                player.health -= 32 * dt;
+                document.getElementById('damage-vignette').style.boxShadow = 'inset 0 0 120px rgba(80,0,0,0.7)';
+                if (player.health <= 0) { player.health = 0; gameState = 'dead'; }
+            } else {
+                document.getElementById('damage-vignette').style.boxShadow = 'inset 0 0 120px rgba(80,0,0,0)';
+            }
+            break;
+        case 'lost':
+            if (canSee) { monster.state='chasing'; monster.stateTimer=8; break; }
+            if (canHear) { monster.state='heard'; monster.stateTimer=5; monster.heardPos={x:player.x,y:player.y}; break; }
+            monster.stateTimer -= dt;
+            if (monster.stateTimer <= 0) { monster.state='idle'; monster.path=null; }
+            break;
+    }
+
+    // Звук монстра — позиционный, слышен раньше чем виден
+    if (d < 14 && (monster.state==='chasing'||monster.state==='near'||monster.state==='heard')) {
+        if (monster.growlTimer <= 0) { playPositionalSound('monster_growl', monster.x, monster.y, false); monster.growlTimer = 1.5 + Math.random()*2; }
+    }
+    if (d < 8 && monster.state==='chasing') {
+        if (Math.random() < dt * 1.5) playPositionalSound('monster_step', monster.x, monster.y, true);
+    }
+
+    // HUD
+    const stateNames = { idle: '???', heard: '!?', searching: 'Ищет...', near: 'РЯДОМ', chasing: 'ПОГОНЯ', lost: '???' };
+    const mh = document.getElementById('hud-monster');
+    mh.querySelector('span').textContent = stateNames[monster.state] || '???';
+    mh.className = 'hud-item' + (monster.state==='chasing' ? ' off' : (monster.state==='near' ? ' warn' : ''));
+}
+// ==================== РЕНДЕРЕР ====================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let rw, rh, imgData, buf, zBuffer;
+
+function initRenderer() {
+    rw = Math.max(120, Math.floor(CFG.rw * CFG.renderScale));
+    rh = Math.max(68, Math.floor(CFG.rh * CFG.renderScale));
+    canvas.width = rw; canvas.height = rh;
+    imgData = ctx.createImageData(rw, rh);
+    buf = new Uint8ClampedArray(rw * rh * 4);
+    zBuffer = new Float32Array(rw); // пересоздаём при смене масштаба — фикс бага
+}
+
+function render() {
+    const w = rw, h = rh;
+    const halfH = h / 2;
+    const dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
+    const planeX = -dirY * CFG.fov, planeY = dirX * CFG.fov;
+    const pitchOff = player.pitch * h + player.headBob * h;
+    const crouchOff = player.crouchLerp * h * 0.08;
+
+    // Потолок и пол
+    for (let y = 0; y < h; y++) {
+        const isFloor = y > halfH + pitchOff + crouchOff;
+        const isCeil = y < halfH + pitchOff + crouchOff;
+        if (!isFloor && !isCeil) continue;
+        const rowDist = isFloor ? h / (2.0 * (y - halfH - pitchOff - crouchOff)) : h / (2.0 * (halfH + pitchOff + crouchOff - y));
+        if (rowDist < 0.1 || rowDist > CFG.viewDist * 1.5) continue;
+        const floorStepX = rowDist * planeX * 2 / w;
+        const floorStepY = rowDist * planeY * 2 / w;
+        let fX = player.x + rowDist * (dirX - planeX);
+        let fY = player.y + rowDist * (dirY - planeY);
+        const tex = isFloor ? textures.floor : textures.ceil;
+        const shade = isFloor ? 0.7 : 0.9;
+        for (let x = 0; x < w; x++) {
+            const tx = ((Math.floor(fX) % TS) + TS) % TS;
+            const ty = ((Math.floor(fY) % TS) + TS) % TS;
+            const ti = (ty * TS + tx) * 4;
+            let r = tex[ti], g = tex[ti+1], b = tex[ti+2];
+            let light = shade * CFG.brightness * Math.max(0, 1 - rowDist / CFG.viewDist);
+            // Фонарик
+            if (player.flashlightOn && player.flashBattery > 0) {
+                const ra = Math.atan2(fY - player.y, fX - player.x) - player.angle;
+                let ra2 = ra; while(ra2>Math.PI)ra2-=Math.PI*2; while(ra2<-Math.PI)ra2+=Math.PI*2;
+                if (Math.abs(ra2) < 0.35) light += (1-Math.abs(ra2)/0.35)*0.8*Math.max(0,1-rowDist/CFG.flashlightRange);
+            }
+            // Аварийный красный свет когда нет питания
+            if (!objectives.powerOn) light *= 0.5;
+            else light *= 0.8;
+            light = clamp(light, 0, 1.5);
+            // Туман
+            const fog = Math.max(0, 1 - rowDist / (CFG.viewDist*1.1));
+            r *= fog; g *= fog; b *= fog;
+            const idx = (y*w+x)*4;
+            buf[idx]=clamp(r*light,0,255)|0; buf[idx+1]=clamp(g*light,0,255)|0; buf[idx+2]=clamp(b*light,0,255)|0; buf[idx+3]=255;
+            fX += floorStepX; fY += floorStepY;
+        }
+    }
+
+    // Стены (DDA)
+    for (let x = 0; x < w; x++) {
+        const cameraX = 2*x/w - 1;
+        const rayDirX = dirX + planeX*cameraX;
+        const rayDirY = dirY + planeY*cameraX;
+        let mapX = Math.floor(player.x), mapY = Math.floor(player.y);
+        const ddx = Math.abs(1/(rayDirX||1e-10));
+        const ddy = Math.abs(1/(rayDirY||1e-10));
+        let stepX, stepY, sideDistX, sideDistY;
+        if (rayDirX<0){stepX=-1;sideDistX=(player.x-mapX)*ddx;}else{stepX=1;sideDistX=(mapX+1-player.x)*ddx;}
+        if (rayDirY<0){stepY=-1;sideDistY=(player.y-mapY)*ddy;}else{stepY=1;sideDistY=(mapY+1-player.y)*ddy;}
+        let hit=false, side=0, isDoor=false, doorRef=null, doorTexX=0, wallCell=1, steps=0;
+        while(!hit && steps<60){
+            steps++;
+            if(sideDistX<sideDistY){sideDistX+=ddx;mapX+=stepX;side=0;}else{sideDistY+=ddy;mapY+=stepY;side=1;}
+            const cell=getCell(mapX,mapY);
+            if(cell===1){hit=true;wallCell=1;}
+            else if(cell>=2&&cell<=6){
+                const d=doors.get(mapX+','+mapY);
+                if(d&&d.openAmount<1.0){
+                    let perpD = side===0 ? (mapX-player.x+(1-stepX)/2)/rayDirX : (mapY-player.y+(1-stepY)/2)/rayDirY;
+                    perpD = Math.abs(perpD);
+                    let hitPos = side===0 ? player.y+perpD*rayDirY : player.x+perpD*rayDirX;
+                    hitPos = hitPos - Math.floor(hitPos);
+                    const panelEnd = 1.0 - d.openAmount;
+                    if(hitPos < panelEnd && panelEnd > 0.01){ hit=true; isDoor=true; doorRef=d; wallCell=cell; doorTexX=clamp(Math.floor((hitPos/panelEnd)*(TS-1)),0,TS-1); }
+                }
+            }
+        }
+        if(!hit){zBuffer[x]=100;continue;}
+        let perpWallDist = side===0 ? (mapX-player.x+(1-stepX)/2)/rayDirX : (mapY-player.y+(1-stepY)/2)/rayDirY;
+        perpWallDist = Math.abs(perpWallDist);
+        zBuffer[x] = perpWallDist;
+        const lineH = Math.floor(h/perpWallDist);
+        let drawStart = Math.max(0, Math.floor(-lineH/2+halfH+pitchOff+crouchOff));
+        let drawEnd = Math.min(h-1, Math.floor(lineH/2+halfH+pitchOff+crouchOff));
+        let texX;
+        if(isDoor){ texX = doorTexX; }
+        else {
+            let wallX = side===0 ? player.y+perpWallDist*rayDirY : player.x+perpWallDist*rayDirX;
+            wallX -= Math.floor(wallX);
+            texX = clamp(Math.floor(wallX*TS),0,TS-1);
+        }
+        let tex;
+        if(isDoor){ const ti=(DOOR_TYPES[wallCell]||DOOR_TYPES[2]).tex; tex=textures[ti]; }
+        else tex = textures.wall;
+        let light = CFG.brightness;
+        if(side===1) light*=0.75;
+        light *= Math.max(0, 1 - perpWallDist/CFG.viewDist);
+        if(player.flashlightOn && player.flashBattery>0){
+            const wa = Math.atan2(player.y+rayDirY*perpWallDist-player.y, player.x+rayDirX*perpWallDist-player.x) - player.angle;
+            let wa2=wa; while(wa2>Math.PI)wa2-=Math.PI*2; while(wa2<-Math.PI)wa2+=Math.PI*2;
+            if(Math.abs(wa2)<0.3) light += (1-Math.abs(wa2)/0.3)*0.6*Math.max(0,1-perpWallDist/7);
+        }
+        if(!objectives.powerOn) light *= 0.55;
+        else light *= 0.8;
+        // Мигание ламп при питании
+        if(objectives.powerOn && perpWallDist<6){ light *= 0.93 + Math.sin(performance.now()*0.01+mapX*3+mapY*7)*0.07; }
+        // Аварийный красный свет
+        if(!objectives.powerOn && perpWallDist<5){ light *= 0.7; }
+        light = clamp(light, 0, 1.5);
+        const fog = Math.max(0, 1 - perpWallDist/(CFG.viewDist*1.1));
+        light *= fog;
+        for(let y=drawStart; y<=drawEnd; y++){
+            const dd = y-(halfH+pitchOff+crouchOff)+lineH/2;
+            const ty = clamp(Math.floor((dd/lineH)*TS),0,TS-1);
+            const ti = (ty*TS+texX)*4;
+            const idx=(y*w+x)*4;
+            buf[idx]=clamp(tex[ti]*light,0,255)|0; buf[idx+1]=clamp(tex[ti+1]*light,0,255)|0; buf[idx+2]=clamp(tex[ti+2]*light,0,255)|0; buf[idx+3]=255;
+        }
+        if(x===Math.floor(w/2)){
+            player._lookAtDoor = isDoor ? doorRef : null;
+            player._lookAtDist = perpWallDist;
+            player._lookAtCell = wallCell;
+        }
+    }
+
+    renderSprites(w, h, halfH, pitchOff+crouchOff, dirX, dirY, planeX, planeY);
+    renderParticles(w, h, halfH, pitchOff+crouchOff, dirX, dirY, planeX, planeY);
+
+    if(CFG.grain) applyGrain(w,h);
+    if(CFG.vignette) applyVignette(w,h);
+    if(CFG.chroma) applyChroma(w,h);
+
+    imgData.data.set(buf);
+    ctx.putImageData(imgData, 0, 0);
+}
+
+// ==================== СПРАЙТЫ ====================
+function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
+    const list = [];
+    for(const item of items){
+        if(item.collected) continue;
+        const d = dist(player.x,player.y,item.x,item.y);
+        if(d>CFG.viewDist||d<0.3) continue;
+        if(!hasLineOfSight(player.x,player.y,item.x,item.y)) continue;
+        list.push({x:item.x,y:item.y,d,type:'item',ref:item});
+    }
+    if(!generator.active){ const gd=dist(player.x,player.y,generator.x,generator.y); if(gd<CFG.viewDist) list.push({x:generator.x,y:generator.y,d:gd,type:'gen'}); }
+    const ed=dist(player.x,player.y,elevator.x,elevator.y); if(ed<CFG.viewDist) list.push({x:elevator.x,y:elevator.y,d:ed,type:'lift'});
+    const md=dist(player.x,player.y,monster.x,monster.y); if(md<CFG.viewDist) list.push({x:monster.x,y:monster.y,d:md,type:'monster'});
+    list.sort((a,b)=>b.d-a.d);
+    const invDet = 1.0/(planeX*dirY - dirX*planeY);
+    for(const spr of list){
+        const sx=spr.x-player.x, sy=spr.y-player.y;
+        const tX=invDet*(dirY*sx-dirX*sy);
+        const tY=invDet*(-planeY*sx+planeX*sy);
+        if(tY<=0.1) continue;
+        const sprScreenX=Math.floor((w/2)*(1+tX/tY));
+        let sprH, sprW, color, alpha;
+        if(spr.type==='item'){ sprH=Math.abs(Math.floor(h/tY*0.3)); sprW=sprH; color=ITEM_TYPES[spr.ref.type]?ITEM_TYPES[spr.ref.type].color:[200,200,200]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
+        else if(spr.type==='gen'){ sprH=Math.abs(Math.floor(h/tY*0.7)); sprW=sprH*0.8; color=objectives.genParts>=3?[100,200,100]:[150,150,150]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
+        else if(spr.type==='lift'){ sprH=Math.abs(Math.floor(h/tY*0.8)); sprW=sprH*0.6; color=objectives.powerOn?[80,200,80]:[100,100,100]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
+        else { sprH=Math.abs(Math.floor(h/tY*0.9)); sprW=sprH*0.5; color=[20,15,15]; alpha=Math.max(0,1-spr.d/(CFG.viewDist*0.6)); if(monster.state==='chasing'||monster.state==='near'){color=[40,10,10];alpha=Math.min(1,alpha+0.3);} }
+        const dSY=Math.max(0,Math.floor(-sprH/2+halfH+pitchOff));
+        const dEY=Math.min(h-1,Math.floor(sprH/2+halfH+pitchOff));
+        const dSX=Math.max(0,Math.floor(sprScreenX-sprW/2));
+        const dEX=Math.min(w-1,Math.floor(sprScreenX+sprW/2));
+        let light=CFG.brightness*Math.max(0,1-spr.d/CFG.viewDist);
+        if(!objectives.powerOn) light*=0.55; else light*=0.8;
+        if(player.flashlightOn&&player.flashBattery>0){
+            const ma=Math.atan2(spr.y-player.y,spr.x-player.x)-player.angle; let maa=ma; while(maa>Math.PI)maa-=Math.PI*2; while(maa<-Math.PI)maa+=Math.PI*2;
+            if(Math.abs(maa)<0.3) light+=0.4*(1-Math.abs(maa)/0.3);
+        }
+        light=clamp(light,0,1.5);
+        for(let y=dSY;y<=dEY;y++) for(let x=dSX;x<=dEX;x++){
+            if(tY>=zBuffer[x]) continue;
+            const nx=(x-(sprScreenX-sprW/2))/sprW;
+            const ny=(y-dSY)/(dEY-dSY+1);
+            let draw=false;
+            if(spr.type==='monster'){
+                const cx=nx-0.5, cy=ny;
+                if(cy>0.1&&cy<1.0){ const bw=0.2+(cy<0.4?cy/0.4*0.3:(1-(cy-0.4)/0.6)*0.3); if(Math.abs(cx)<bw) draw=true; }
+                if(cy>0.2&&cy<0.35&&(Math.abs(cx-0.08)<0.05||Math.abs(cx+0.08)<0.05)){draw=true;color=[200,30,30];}
+            } else {
+                if(nx>0.1&&nx<0.9&&ny>0.05&&ny<0.95) draw=true;
+            }
+            if(!draw) continue;
+            const idx=(y*w+x)*4;
+            const a=alpha*light;
+            buf[idx]=clamp(buf[idx]+color[0]*a*0.5,0,255)|0;
+            buf[idx+1]=clamp(buf[idx+1]+color[1]*a*0.5,0,255)|0;
+            buf[idx+2]=clamp(buf[idx+2]+color[2]*a*0.5,0,255)|0;
+        }
+        // Запоминаем предмет в центре для подсказки
+        if(spr.type==='item' && Math.abs(sprScreenX-w/2)<sprW/2 && tY<3.0){ player._lookItem = spr.ref; }
+        else if(spr.type==='item') { /* не сбрасываем тут */ }
+        if(spr.type==='gen' && Math.abs(sprScreenX-w/2)<sprW/2 && tY<2.5) player._lookGen = true;
+        if(spr.type==='lift'&& Math.abs(sprScreenX-w/2)<sprW/2 && tY<2.5) player._lookLift = true;
+    }
+}
+
+// ==================== ЧАСТИЦЫ (РЕНДЕР) ====================
+function renderParticles(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
+    const invDet = 1.0/(planeX*dirY - dirX*planeY);
+    for(const p of particles){
+        const d = dist(player.x, player.y, p.x, p.y);
+        if(d > CFG.viewDist || d < 0.3) continue;
+        if(!hasLineOfSight(player.x, player.y, p.x, p.y)) continue;
+        const sx = p.x - player.x, sy = p.y - player.y;
+        const tX = invDet*(dirY*sx - dirX*sy);
+        const tY = invDet*(-planeY*sx + planeX*sy);
+        if(tY <= 0.1) continue;
+        const screenX = Math.floor((w/2)*(1 + tX/tY));
+        const screenY = Math.floor(halfH + pitchOff);
+        if(screenX < 0 || screenX >= w || screenY < 0 || screenY >= h) continue;
+        if(tY >= zBuffer[screenX]) continue;
+        // Размер пылинки ~1-2 пикселя, яркость зависит от близости и жизни
+        const fade = clamp(p.life / 6, 0, 1);
+        const distFade = Math.max(0, 1 - d / CFG.viewDist);
+        let light = CFG.brightness * distFade;
+        if(player.flashlightOn && player.flashBattery > 0){
+            const ma = Math.atan2(p.y - player.y, p.x - player.x) - player.angle;
+            let maa = ma; while(maa > Math.PI) maa -= Math.PI*2; while(maa < -Math.PI) maa += Math.PI*2;
+            if(Math.abs(maa) < 0.35) light += 0.5*(1 - Math.abs(maa)/0.35);
+        }
+        light = clamp(light, 0, 1.5);
+        const a = fade * distFade * 0.6;
+        const px = screenX, py = screenY + Math.floor((Math.sin(p.x*7+p.y*3)*0.5)*h/tY*0.05);
+        if(px >= 0 && px < w && py >= 0 && py < h){
+            const idx = (py*w + px)*4;
+            const v = 180 * a * light;
+            buf[idx]   = clamp(buf[idx]   + v, 0, 255)|0;
+            buf[idx+1] = clamp(buf[idx+1] + v*0.95, 0, 255)|0;
+            buf[idx+2] = clamp(buf[idx+2] + v*0.85, 0, 255)|0;
+        }
+    }
+}
+
+// ==================== ПОСТОБРАБОТКА ====================
+function applyGrain(w,h){
+    for(let i=0;i<w*h*4;i+=4){
+        const n=(Math.random()-0.5)*16;
+        buf[i]=clamp(buf[i]+n,0,255)|0; buf[i+1]=clamp(buf[i+1]+n,0,255)|0; buf[i+2]=clamp(buf[i+2]+n,0,255)|0;
+    }
+}
+function applyVignette(w,h){
+    const cx=w/2, cy=h/2, maxD=Math.sqrt(cx*cx+cy*cy);
+    for(let y=0;y<h;y+=2) for(let x=0;x<w;x+=2){
+        const d=Math.sqrt((x-cx)*(x-cx)+(y-cy)*(y-cy))/maxD;
+        const v=1-d*d*0.75;
+        const idx=(y*w+x)*4;
+        buf[idx]=clamp(buf[idx]*v,0,255)|0; buf[idx+1]=clamp(buf[idx+1]*v,0,255)|0; buf[idx+2]=clamp(buf[idx+2]*v,0,255)|0;
+        if(x+1<w){const i2=idx+4;buf[i2]=buf[idx];buf[i2+1]=buf[idx+1];buf[i2+2]=buf[idx+2];}
+        if(y+1<h){const i2=idx+w*4;buf[i2]=buf[idx];buf[i2+1]=buf[idx+1];buf[i2+2]=buf[idx+2];}
+        if(x+1<w&&y+1<h){const i2=idx+w*4+4;buf[i2]=buf[idx];buf[i2+1]=buf[idx+1];buf[i2+2]=buf[idx+2];}
+    }
+}
+function applyChroma(w,h){
+    const shift=2;
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+        const idx=(y*w+x)*4;
+        const rx=Math.min(w-1,x+shift), bx=Math.max(0,x-shift);
+        buf[idx]=buf[(y*w+rx)*4]; buf[idx+2]=buf[(y*w+bx)*4+2];
+    }
+}
+// ==================== АУДИО ====================
+let audioCtx = null;
+const audioNodes = {};
+
+function initAudio() {
+    if (audioCtx) return;
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ return; }
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type='sine'; osc.frequency.value=55; gain.gain.value=0.03*CFG.volume;
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start();
+    audioNodes.hum={osc,gain};
+    const osc2=audioCtx.createOscillator(), gain2=audioCtx.createGain();
+    osc2.type='sine'; osc2.frequency.value=82; gain2.gain.value=0.015*CFG.volume;
+    osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.start();
+    audioNodes.hum2={osc:osc2,gain:gain2};
+    // Шум вентиляции
+    const noiseBuf=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);
+    const nd=noiseBuf.getChannelData(0);
+    for(let i=0;i<nd.length;i++) nd[i]=(Math.random()*2-1)*0.5;
+    const nsrc=audioCtx.createBufferSource(); nsrc.buffer=noiseBuf; nsrc.loop=true;
+    const ng=audioCtx.createGain(); ng.gain.value=0.008*CFG.volume;
+    const nf=audioCtx.createBiquadFilter(); nf.type='lowpass'; nf.frequency.value=300;
+    nsrc.connect(nf); nf.connect(ng); ng.connect(audioCtx.destination); nsrc.start();
+    audioNodes.vent={src:nsrc,gain:ng};
+}
+
+function playSound(type) {
+    if(!audioCtx) return;
+    const now=audioCtx.currentTime, vol=CFG.volume;
+    if(type==='step'){ const b=audioCtx.createBuffer(1,audioCtx.sampleRate*0.08,audioCtx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/(d.length*0.15)); const s=audioCtx.createBufferSource(); s.buffer=b; const g=audioCtx.createGain(); g.gain.value=0.08*vol; const f=audioCtx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=800+Math.random()*400; s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(now); }
+    else if(type==='wood_open'){playNoiseBurst(0.15,400,0.12*vol);setTimeout(()=>playNoiseBurst(0.08,300,0.06*vol),100);}
+    else if(type==='wood_close'){playNoiseBurst(0.1,500,0.1*vol);}
+    else if(type==='metal_open'){playNoiseBurst(0.4,200,0.18*vol);playTone(180,0.3,0.04*vol);}
+    else if(type==='metal_close'){playNoiseBurst(0.25,300,0.15*vol);playTone(120,0.2,0.03*vol);}
+    else if(type==='alarm_open'){playNoiseBurst(0.08,600,0.1*vol);playTone(880,0.1,0.06*vol);setTimeout(()=>playTone(880,0.1,0.06*vol),150);}
+    else if(type==='alarm_close'){playNoiseBurst(0.06,500,0.08*vol);}
+    else if(type==='pickup'){playTone(600,0.08,0.06*vol);setTimeout(()=>playTone(900,0.1,0.05*vol),80);}
+    else if(type==='generator_on'){playNoiseBurst(0.5,150,0.15*vol);playTone(60,1.0,0.08*vol);setTimeout(()=>playTone(80,0.5,0.06*vol),500);}
+    else if(type==='elevator_call'){playTone(300,0.3,0.08*vol);setTimeout(()=>playTone(400,0.3,0.08*vol),300);setTimeout(()=>playTone(500,0.5,0.08*vol),600);}
+    else if(type==='event_sound'){playNoiseBurst(0.2,1000,0.1*vol);playTone(200+Math.random()*300,0.5,0.04*vol);}
+    else if(type==='door_slam'){playNoiseBurst(0.15,250,0.2*vol);}
+    else if(type==='monster_growl'){playNoiseBurst(0.6,100,0.12*vol);playTone(50+Math.random()*30,0.8,0.06*vol);}
+    else if(type==='monster_step'){playNoiseBurst(0.12,150,0.05*vol);}
+    else if(type==='phone'){playTone(440,0.1,0.1*vol);setTimeout(()=>playTone(440,0.1,0.1*vol),200);}
+    else if(type==='drip'){playTone(800+Math.random()*400,0.05,0.03*vol);}
+    else if(type==='pipe'){playTone(120,0.3,0.02*vol);}
+}
+function playPositionalSound(type,sx,sy,isLoud){
+    if(!audioCtx) return;
+    const d=dist(player.x,player.y,sx,sy);
+    const maxR=isLoud?20:14;
+    if(d>maxR) return;
+    const pan=clamp((sx-player.x)/maxR,-1,1);
+    const vol=clamp(1-d/maxR,0,1)*CFG.volume;
+    if(type==='step'||type==='monster_step'){ playNoiseBurst(0.1,200,0.06*vol); }
+    else if(type==='monster_growl'){ playNoiseBurst(0.6,100,0.1*vol); playTone(50+Math.random()*30,0.8,0.05*vol); }
+    else playSound(type);
+}
+function playNoiseBurst(duration,freq,vol){
+    if(!audioCtx) return;
+    const now=audioCtx.currentTime;
+    const b=audioCtx.createBuffer(1,audioCtx.sampleRate*duration,audioCtx.sampleRate);
+    const d=b.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(d.length*0.3));
+    const s=audioCtx.createBufferSource(); s.buffer=b;
+    const g=audioCtx.createGain(); g.gain.value=vol;
+    const f=audioCtx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=freq; f.Q.value=2;
+    s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(now);
+}
+function playTone(freq,duration,vol){
+    if(!audioCtx) return;
+    const now=audioCtx.currentTime;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine'; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,now); g.gain.exponentialRampToValueAtTime(0.001,now+duration);
+    o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+duration);
+}
+
+// Окружающие звуки атмосферы
+let ambientTimer=0;
+function updateAmbient(dt){
+    ambientTimer-=dt;
+    if(ambientTimer<=0){
+        ambientTimer=5+Math.random()*10;
+        const r=Math.random();
+        if(r<0.3) playSound('drip');
+        else if(r<0.55) playSound('pipe');
+        else if(r<0.75) playNoiseBurst(0.3,200,0.02*CFG.volume);
+        else if(r<0.9) playNoiseBurst(0.15,1500,0.015*CFG.volume);
+    }
+}
+
+// ==================== СОБЫТИЯ ====================
+let eventCooldown=120;
+const EVENTS=[
+    {name:'flicker',action:()=>triggerEvent('flicker')},
+    {name:'door_open',action:()=>triggerEvent('random_door')},
+    {name:'sound',action:()=>{playSound('event_sound');showSubtitle('Ты услышал что-то далёкое...');}},
+    {name:'phone',action:()=>{playSound('phone');showSubtitle('Где-то звонит телефон...');}},
+    {name:'lamp_pop',action:()=>{playNoiseBurst(0.05,2000,0.15*CFG.volume);flashScreen('#ffffff',0.15);}},
+    {name:'blood',action:()=>showSubtitle('На полу появилась кровь...')},
+    {name:'steps_far',action:()=>playNoiseBurst(0.3,200,0.05*CFG.volume)},
+    {name:'wall_knock',action:()=>{playNoiseBurst(0.1,400,0.12*CFG.volume);setTimeout(()=>playNoiseBurst(0.1,400,0.1*CFG.volume),300);showSubtitle('Стук в стену...');}},
+    {name:'door_slam_far',action:()=>{playSound('door_slam');showSubtitle('ГДЕ-ТО ХЛОПНУЛА ДВЕРЬ!');}}
+];
+function updateEvents(dt){
+    eventCooldown-=dt;
+    if(activeTrigger){ triggerTimer-=dt; if(triggerTimer<=0){executeTrigger(activeTrigger); activeTrigger=null;} }
+    if(eventCooldown<=0){
+        // Опасность влияет на частоту
+        const danger = (objectives.docsCollected/8) + (elevator.finalPhase?0.5:0);
+        eventCooldown = (180-danger*60) + Math.random()*80;
+        const evt=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+        evt.action();
+        // После 6 документов — двери могут закрываться сами
+        if(objectives.docsCollected>=6 && Math.random()<0.3){
+            for(const [k,d] of doors){ if(d.openAmount>0.3 && !d.jammed && dist(player.x,player.y,d.wx,d.wy)>4 && dist(player.x,player.y,d.wx,d.wy)<18){ d.slamTimer=1+Math.random()*2; break; } }
+        }
+    }
+}
+function executeTrigger(trigger){
+    switch(trigger){
+        case 'look_back': showSubtitle('Вам стало не по себе... Не оглядывайтесь.',4000); break;
+        case 'lights_out': triggerEvent('flicker'); showSubtitle('Свет моргнул...',3000); break;
+        case 'hear_run': showSubtitle('Теперь он слышит бег.',4000); break;
+        case 'flashlight': showSubtitle('Он не любит свет. Используйте фонарь.',4000); break;
+        case 'door_slam': playSound('door_slam'); showSubtitle('ГДЕ-ТО ХЛОПНУЛА ДВЕРЬ!',4000); break;
+        case 'red_doors': showSubtitle('Красные двери — его территория.',4000); break;
+    }
+}
+function triggerEvent(type){
+    if(type==='flicker'){ flashScreen('#000000',0.3); setTimeout(()=>flashScreen('#1a1508',0.2),200); setTimeout(()=>flashScreen('#000000',0.15),500); playNoiseBurst(0.1,100,0.1*CFG.volume); }
+    else if(type==='random_door'){ let count=0; for(const [k,d] of doors){ if(d.openAmount<0.1&&!d.jammed&&dist(player.x,player.y,d.wx,d.wy)>5&&dist(player.x,player.y,d.wx,d.wy)<20&&count<1){ d.opening=true; playSound((DOOR_TYPES[d.type]||DOOR_TYPES[2]).sound+'_open'); showSubtitle('Где-то открылась дверь...',3000); count++; } } }
+    else if(type==='power_on'){ flashScreen('#ffffaa',0.5); playSound('generator_on'); setTimeout(()=>showSubtitle('Освещение восстановлено.',3000),1500); }
+}
+function flashScreen(color,duration){ const el=document.getElementById('event-flash'); el.style.background=color; el.style.opacity='0.4'; setTimeout(()=>el.style.opacity='0',duration*1000); }
+
+// ==================== ФИНАЛЬНАЯ ФАЗА ====================
+function startFinalPhase(){
+    showSubtitle('Монстр чувствует вас. Он идёт!',4000);
+    // Монстр рвётся к игроку
+    monster.state='chasing'; monster.stateTimer=999; monster.speed=3.5;
+    // Закрываем двери вокруг чтобы создать напряжение
+    for(const [k,d] of doors){ if(dist(player.x,player.y,d.wx,d.wy)<10 && d.openAmount>0){ d.closing=true; d.opening=false; } }
+    playSound('monster_growl');
+}
+
+// ==================== ЧАСТИЦЫ ====================
+const particles=[];
+function updateParticles(dt){
+    for(let i=particles.length-1;i>=0;i--){
+        const p=particles[i];
+        p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt;
+        if(p.life<=0) particles.splice(i,1);
+    }
+    if(Math.random()<0.1){ particles.push({x:player.x+(Math.random()-0.5)*6,y:player.y+(Math.random()-0.5)*6,vx:(Math.random()-0.5)*0.1,vy:(Math.random()-0.5)*0.1,life:3+Math.random()*3}); }
+}
+
+// ==================== СОХРАНЕНИЕ ====================
+function saveGame(){
+    const data={
+        player:{x:player.x,y:player.y,angle:player.angle,health:player.health,flashBattery:player.flashBattery,batteries:player.batteries,keys:player.keys,pills:player.pills,maps:player.maps,tools:player.tools,stamina:player.stamina},
+        objectives:{...objectives},
+        docsRead:[...docReadFlags],
+        items:items.filter(i=>i.collected).map(i=>i.type+'_'+i.id),
+        elevator:{finalPhase:elevator.finalPhase,timer:elevator.timer,active:elevator.active,x:elevator.x,y:elevator.y},
+        generator:{active:generator.active,x:generator.x,y:generator.y},
+        monster:{x:monster.x,y:monster.y,state:monster.state},
+        settings:{sens:CFG.sens,bright:CFG.brightness,vol:CFG.volume,scale:CFG.renderScale,grain:CFG.grain,vignette:CFG.vignette,chroma:CFG.chroma}
+    };
+    try{localStorage.setItem('backrooms_b2_save',JSON.stringify(data));}catch(e){}
+}
+function loadGame(){
+    if(!loadGameRaw()) return false;
+    applySettingsFromSave();
+    return true;
+}
+function loadGameRaw(){
+    try{
+        const raw=localStorage.getItem('backrooms_b2_save');
+        if(!raw) return false;
+        const data=JSON.parse(raw);
+        Object.assign(player,data.player);
+        Object.assign(objectives,data.objectives);
+        docReadFlags=new Set(data.docsRead||[]);
+        if(data.items){ for(const key of data.items){ const [type,id]=key.split('_'); const item=items.find(i=>i.type===type&&i.id==id); if(item) item.collected=true; } }
+        if(data.elevator) Object.assign(elevator,data.elevator);
+        if(data.generator) Object.assign(generator,data.generator);
+        if(data.monster){ monster.x=data.monster.x; monster.y=data.monster.y; monster.state=data.monster.state; }
+        _savedSettings = data.settings || null;
+        return true;
+    }catch(e){ return false; }
+}
+function applySettingsFromSave(){
+    const s=_savedSettings; if(!s) return;
+    CFG.sens=s.sens||5; CFG.brightness=s.bright||0.8; CFG.volume=s.vol||0.6; CFG.renderScale=s.scale||1.0; CFG.grain=s.grain!==false; CFG.vignette=s.vignette!==false; CFG.chroma=s.chroma!==false; applySettingsToUI(); initRenderer();
+}
+let _savedSettings=null;
+function hasSave(){ return !!localStorage.getItem('backrooms_b2_save'); }
+function clearSave(){ try{localStorage.removeItem('backrooms_b2_save');}catch(e){} }
+
+// ==================== UI / СОСТОЯНИЕ ====================
+let gameState='menu';
+
+function updateUI(){
+    const prompt=document.getElementById('interact-prompt');
+    player._lookItem=null; player._lookGen=false; player._lookLift=false;
+    if(gameState==='playing'){
+        let shown=false;
+        if(player._lookAtDoor && player._lookAtDist<2.5){
+            const d=player._lookAtDoor; const tn=(DOOR_TYPES[d.type]||DOOR_TYPES[2]).name;
+            let txt='[E] '+tn;
+            if(d.jammed) txt+=' — Заклинило'; else if(d.locked) txt+=' — Требуется ключ'; else if(d.openAmount>0) txt+=' — Закрыть'; else txt+=' — Открыть';
+            prompt.textContent=txt; prompt.style.display='block'; shown=true; clearTimeout(prompt._timer);
+        }
+        // генератор/лифт по дистанции (центр экрана уже проверен в спрайтах)
+        if(dist(player.x,player.y,generator.x,generator.y)<2 && !generator.active){
+            if(objectives.genParts>=3) prompt.textContent='[E] Включить генератор'; else prompt.textContent='Генератор — нужно '+objectives.genParts+'/3 деталей';
+            prompt.style.display='block'; shown=true; clearTimeout(prompt._timer);
+        }
+        if(dist(player.x,player.y,elevator.x,elevator.y)<2 && objectives.powerOn && !elevator.finalPhase){
+            prompt.textContent='[E] Вызвать лифт'; prompt.style.display='block'; shown=true; clearTimeout(prompt._timer);
+        }
+        if(!shown){ /* оставим как есть, таймер скроет */ }
+    }
+    // Экран смерти
+    if(gameState==='dead'){
+        ctx.fillStyle='rgba(30,0,0,0.85)'; ctx.fillRect(0,0,rw,rh);
+        ctx.fillStyle='#cc3333'; ctx.font='28px "Courier New"'; ctx.textAlign='center';
+        ctx.fillText('ВЫ ПОГИБЛИ',rw/2,rh/2-10);
+        ctx.fillStyle='#886666'; ctx.font='14px "Courier New"';
+        ctx.fillText('Нажмите R чтобы начать заново',rw/2,rh/2+25);
+    }
+    if(gameState==='won'){
+        ctx.fillStyle='rgba(0,10,0,0.9)'; ctx.fillRect(0,0,rw,rh);
+        ctx.fillStyle='#44cc44'; ctx.font='28px "Courier New"'; ctx.textAlign='center';
+        ctx.fillText('ВЫ ВЫЖИЛИ',rw/2,rh/2-10);
+        ctx.fillStyle='#668866'; ctx.font='14px "Courier New"';
+        ctx.fillText('Лифт увозит вас наверх...',rw/2,rh/2+25);
+    }
+}
+function applySettingsToUI(){
+    document.getElementById('s-sens').value=CFG.sens; document.getElementById('v-sens').textContent=CFG.sens;
+    document.getElementById('s-bright').value=Math.round(CFG.brightness*100); document.getElementById('v-bright').textContent=Math.round(CFG.brightness*100)+'%';
+    document.getElementById('s-vol').value=Math.round(CFG.volume*100); document.getElementById('v-vol').textContent=Math.round(CFG.volume*100)+'%';
+    document.getElementById('s-scale').value=Math.round(CFG.renderScale*100); document.getElementById('v-scale').textContent=Math.round(CFG.renderScale*100)+'%';
+    document.getElementById('s-grain').checked=CFG.grain; document.getElementById('s-vignette').checked=CFG.vignette; document.getElementById('s-chroma').checked=CFG.chroma;
+}
+// ==================== ВВОД ====================
+document.addEventListener('keydown', e => {
+    // ESC обрабатываем в любом состоянии (пауза/возобновление)
+    if(e.code==='Escape'){
+        if(gameState==='playing'){
+            gameState='paused';
+            document.getElementById('menu').style.display='flex';
+            document.getElementById('btn-continue').style.display='block';
+            if(document.exitPointerLock) document.exitPointerLock();
+        } else if(gameState==='paused'){
+            gameState='playing';
+            document.getElementById('menu').style.display='none';
+            canvas.requestPointerLock();
+        }
+        return;
+    }
+    // Закрытие документа/выбора клавишей E или ESC-подобными
+    if(gameState!=='playing') return;
+    switch(e.code){
+        case 'KeyW': case 'ArrowUp': input.forward=true; break;
+        case 'KeyS': case 'ArrowDown': input.back=true; break;
+        case 'KeyA': case 'ArrowLeft': input.left=true; break;
+        case 'KeyD': case 'ArrowRight': input.right=true; break;
+        case 'ShiftLeft': case 'ShiftRight': input.sprint=true; break;
+        case 'ControlLeft': case 'ControlRight': input.crouch=true; break;
+        case 'KeyE': input.interact=true; handleInteract(); break;
+        case 'KeyF': player.flashlightOn=!player.flashlightOn; if(player.flashlightOn && player.flashBattery<=0) player.flashlightOn=false; break;
+        case 'KeyH': if(player.pills>0 && player.health<100){ player.pills--; player.health=Math.min(100,player.health+25); showPrompt('Таблетка принята (+25 HP)'); updateHUD(); } break;
+        case 'KeyR': startNewGame(); break;
+    }
+});
+document.addEventListener('keyup', e => {
+    switch(e.code){
+        case 'KeyW': case 'ArrowUp': input.forward=false; break;
+        case 'KeyS': case 'ArrowDown': input.back=false; break;
+        case 'KeyA': case 'ArrowLeft': input.left=false; break;
+        case 'KeyD': case 'ArrowRight': input.right=false; break;
+        case 'ShiftLeft': case 'ShiftRight': input.sprint=false; break;
+        case 'ControlLeft': case 'ControlRight': input.crouch=false; break;
+    }
+});
+document.addEventListener('mousemove', e => {
+    if(gameState!=='playing') return;
+    mouseDX += e.movementX||0;
+    mouseDY += e.movementY||0;
+});
+canvas.addEventListener('click', () => {
+    if(gameState==='playing' && document.pointerLockElement!==canvas) canvas.requestPointerLock();
+});
+
+function handleInteract(){
+    if(player._lookAtDoor && player._lookAtDist<2.5){
+        const msg=interactDoor(player._lookAtDoor);
+        if(msg) showPrompt(msg);
+    }
+}
+
+// ==================== МЕНЮ ====================
+document.getElementById('btn-new').addEventListener('click', ()=>{ initAudio(); startNewGame(); });
+document.getElementById('btn-continue').addEventListener('click', ()=>{
+    initAudio();
+    if(gameState==='paused'){
+        // Возобновление из паузы — без перезагрузки мира
+        gameState='playing';
+        document.getElementById('menu').style.display='none';
+        canvas.requestPointerLock();
+    } else {
+        // Из главного меню — загружаем сохранение
+        startContinue();
+    }
+});
+document.getElementById('btn-settings').addEventListener('click', ()=>{ document.getElementById('settings').style.display='flex'; });
+document.getElementById('btn-settings-back').addEventListener('click', ()=>{ document.getElementById('settings').style.display='none'; saveGame(); });
+document.getElementById('btn-controls').addEventListener('click', ()=>{ document.getElementById('controls').style.display='flex'; });
+document.getElementById('btn-controls-back').addEventListener('click', ()=>{ document.getElementById('controls').style.display='none'; });
+
+document.getElementById('s-sens').addEventListener('input', e=>{ CFG.sens=parseInt(e.target.value); document.getElementById('v-sens').textContent=CFG.sens; });
+document.getElementById('s-bright').addEventListener('input', e=>{ CFG.brightness=parseInt(e.target.value)/100; document.getElementById('v-bright').textContent=parseInt(e.target.value)+'%'; });
+document.getElementById('s-vol').addEventListener('input', e=>{ CFG.volume=parseInt(e.target.value)/100; document.getElementById('v-vol').textContent=parseInt(e.target.value)+'%'; if(audioNodes.hum)audioNodes.hum.gain.value=0.03*CFG.volume; if(audioNodes.hum2)audioNodes.hum2.gain.value=0.015*CFG.volume; if(audioNodes.vent)audioNodes.vent.gain.value=0.008*CFG.volume; });
+document.getElementById('s-scale').addEventListener('input', e=>{ CFG.renderScale=parseInt(e.target.value)/100; document.getElementById('v-scale').textContent=parseInt(e.target.value)+'%'; initRenderer(); });
+document.getElementById('s-grain').addEventListener('change', e=>CFG.grain=e.target.checked);
+document.getElementById('s-vignette').addEventListener('change', e=>CFG.vignette=e.target.checked);
+document.getElementById('s-chroma').addEventListener('change', e=>CFG.chroma=e.target.checked);
+
+document.querySelector('.doc-close').addEventListener('click', ()=>{ document.getElementById('doc-ui').style.display='none'; gameState='playing'; canvas.requestPointerLock(); });
+document.querySelectorAll('.choice-btn').forEach(btn=>btn.addEventListener('click', ()=>{
+    const ui=document.getElementById('choice-ui');
+    const choice=btn.dataset.choice;
+    const dk=ui.dataset.door;
+    if(dk && choice==='yes'){
+        const d=doors.get(dk);
+        if(d){ d.opening=true; d.closing=false; d.interacted=true; playSound('alarm_open'); showSubtitle('СИРЕНА! Он услышал...',3000); monster.state='heard'; monster.stateTimer=8; monster.heardPos={x:d.wx,y:d.wy}; }
+    }
+    ui.style.display='none';
+    gameState='playing';
+    canvas.requestPointerLock();
+}));
+
+// ==================== ЗАПУСК ИГРЫ ====================
+function startNewGame(){
+    chunks.clear(); doors.clear(); chunkDoorSeeds.clear(); chunkRoomTags.clear();
+    chunkLRU.length=0; items.length=0; docReadFlags.clear(); particles.length=0;
+    player.x=7.5; player.y=7.5; player.angle=0; player.pitch=0; player.health=100;
+    player.batteries=0; player.keys=0; player.pills=0; player.maps=0; player.tools=0;
+    player.flashlightOn=true; player.flashBattery=100; player.running=false; player.stamina=1.0; player.crouchLerp=0;
+    objectives.docsCollected=0; objectives.genParts=0; objectives.powerOn=false;
+    generator.active=false; elevator.finalPhase=false; elevator.timer=0; elevator.active=false;
+    monster.x=25; monster.y=25; monster.state='idle'; monster.alertLevel=0; monster.path=null; monster.pathIdx=0;
+    monster.canOpenDoors=false; monster.reactsToFlashlight=false; monster.reactsToRunning=false;
+    activeTrigger=null; triggerTimer=0; eventCooldown=90+Math.random()*40;
+    ensureChunks(player.x,player.y);
+    spawnWorldItems();
+    placeGeneratorAndElevator();
+    updateHUD();
+    document.getElementById('menu').style.display='none';
+    document.getElementById('settings').style.display='none';
+    document.getElementById('controls').style.display='none';
+    document.getElementById('hud').style.display='block';
+    document.getElementById('hud-health').style.display='block';
+    document.getElementById('hud-batt').style.display='block';
+    document.getElementById('stamina').style.display='block';
+    gameState='playing';
+    canvas.requestPointerLock();
+    showSubtitle('Уровень B2. Найдите 8 документов, восстановите питание и вызовите лифт.',6000);
+    saveGame();
+}
+
+function startContinue(){
+    // Генерируем мир и предметы ПЕРЕД загрузкой — фикс бага пустого мира
+    chunks.clear(); doors.clear(); chunkDoorSeeds.clear(); chunkRoomTags.clear();
+    chunkLRU.length=0; particles.length=0;
+    // Сначала загрузим сохранение чтобы узнать позицию игрока
+    if(!loadGameRaw()){
+        startNewGame();
+        return;
+    }
+    ensureChunks(player.x,player.y);
+    spawnWorldItems();
+    placeGeneratorAndElevator();
+    loadGameRaw(); // повторно применить collected-флаги поверх свежего спавна
+    document.getElementById('menu').style.display='none';
+    document.getElementById('settings').style.display='none';
+    document.getElementById('hud').style.display='block';
+    document.getElementById('hud-health').style.display='block';
+    document.getElementById('hud-batt').style.display='block';
+    document.getElementById('stamina').style.display='block';
+    gameState='playing';
+    canvas.requestPointerLock();
+    updateHUD();
+}
+
+// ==================== ИГРОВОЙ ЦИКЛ ====================
+let lastTime=0, fpsCounter=0, fpsTime=0;
+function gameLoop(time){
+    requestAnimationFrame(gameLoop);
+    const dt=Math.min((time-lastTime)/1000,0.05);
+    lastTime=time;
+    fpsCounter++; fpsTime+=dt;
+    if(fpsTime>=1){ fpsCounter=0; fpsTime=0; }
+    if(gameState==='playing'){
+        ensureChunks(player.x,player.y);
+        updatePlayer(dt);
+        updateDoors(dt);
+        updateMonster(dt);
+        updateEvents(dt);
+        updateParticles(dt);
+        updateAmbient(dt);
+        if(elevator.finalPhase) updateHUD();
+    }
+    if(gameState==='playing'||gameState==='dead'||gameState==='won'||gameState==='reading'||gameState==='choosing'){
+        render();
+        updateUI();
+    }
+}
+
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init(){
- canvas=document.getElementById('screen');
- canvas.width=W;canvas.height=H;
- screenCtx=canvas.getContext('2d',{alpha:false});
- screenCtx.imageSmoothingEnabled=false;
- imageData=screenCtx.createImageData(W,H);
- renderBuffer=new Uint32Array(imageData.data.buffer);
- zBuffer=new Float32Array(W*H);     // per-pixel depth (for sprites)
- depthBuffer=new Float32Array(W);   // per-column wall depth
- subtitleEl=document.getElementById('subtitles');
- promptEl=document.getElementById('prompt');
- invEl=document.getElementById('inv');
- flashEl=document.getElementById('flash');
- noteOverlayEl=document.getElementById('noteOverlay');
- generateTextures();
- vignetteTable=new Float32Array(W*H);
- for(let y=0;y<H;y++)for(let x=0;x<W;x++){const dx=(x/W-.5)*2,dy=(y/H-.5)*2,d=Math.sqrt(dx*dx+dy*dy);vignetteTable[y*W+x]=Math.max(.28,1-d*d*.38)}
- grainTex=new Uint8Array(256*256);for(let i=0;i<grainTex.length;i++)grainTex[i]=Math.random()*255;
- setupInput();
- resizeCanvas();window.addEventListener('resize',resizeCanvas);
- updateNearbyLights();updateLightData();
- stalkerInit();
- requestAnimationFrame(gameLoop);
-}
-function resizeCanvas(){
- const ar=W/H,w=window.innerWidth,h=window.innerHeight;
- if(w/h>ar){canvas.style.width=(h*ar)+'px';canvas.style.height=h+'px'}
- else{canvas.style.width=w+'px';canvas.style.height=(w/ar)+'px'}
-}
-
-let lastTime=0;
-function gameLoop(now){
- const dt=Math.min(.05,(now-lastTime)/1000);lastTime=now;
- if(started){
-  updatePlayer(dt);updateNearbyLights();updateLights(dt);updateLightData();
-  updateAudioListener();updateEvents(dt);updateSubtitles(dt);updateSanity(dt);
-  updateStalker(dt);
-  gameTime+=dt;
-  if(Math.floor(gameTime)%5===0&&Math.floor(gameTime)!==lastSaveTime){saveGame();lastSaveTime=Math.floor(gameTime)}
-  // interaction probe + prompt
-  interactTarget=findInteractTarget();
-  if(interactTarget){setPrompt(interactTarget.type===3?'[E] READ NOTE':interactTarget.type===2?'[E] OPEN DOOR':'[E] DESCEND')}
-  else setPrompt(null);
-  // HUD + inventory
-  let hud='POS '+player.x.toFixed(1)+', '+player.y.toFixed(1)+'\nTIME '+Math.floor(gameTime)+'s\nSANITY '+Math.round(sanity*100)+'%';
-  if(flashlightOn){hud+='\nBATT '+Math.round(flashlightBattery*100)+'%'}
-  document.getElementById('hud').textContent=hud;
-  let st=stalker.state.toUpperCase();
-  if(st==='STALKING'||st==='HUNTING')st='???';
-  invEl.textContent='ENTITY: '+st;
- }
- render();
- requestAnimationFrame(gameLoop);
+    initTextures();
+    initRenderer();
+    if(hasSave()){
+        spawnWorldItems();
+        placeGeneratorAndElevator();
+        loadGame();
+        document.getElementById('btn-continue').style.display='block';
+    }
+    applySettingsToUI();
+    requestAnimationFrame(gameLoop);
 }
 init();
 </script>
