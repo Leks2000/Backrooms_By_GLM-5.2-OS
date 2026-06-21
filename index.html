@@ -6,7 +6,7 @@
 <title>Backrooms — Уровень B2</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:none;user-select:none}
+body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:auto;user-select:none}
 #game{display:block;width:100vw;height:100vh;image-rendering:pixelated;image-rendering:crisp-edges}
 #cursor{position:fixed;top:50%;left:50%;width:4px;height:4px;background:rgba(255,255,255,0.6);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:100;box-shadow:0 0 6px rgba(255,255,255,0.3)}
 #hud{position:fixed;bottom:20px;left:20px;right:20px;display:none;z-index:50;pointer-events:none}
@@ -53,6 +53,7 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:
 #stamina{position:fixed;bottom:96px;left:20px;width:200px;height:6px;background:rgba(0,0,0,0.5);border-radius:3px;z-index:50;display:none;overflow:hidden}
 #stamina-bar{height:100%;width:100%;background:#c8a840;transition:width 0.2s}
 #subtitle{position:fixed;top:62%;left:50%;transform:translateX(-50%);color:#b0b0b0;font-size:13px;z-index:48;display:none;pointer-events:none;text-shadow:0 0 8px #000;background:rgba(0,0,0,0.4);padding:5px 14px;border-radius:4px;text-align:center;max-width:80%}
+#minimap{position:fixed;top:20px;right:20px;width:180px;height:180px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,200,50,0.35);display:none;z-index:70;image-rendering:pixelated;border-radius:4px}
 </style>
 </head>
 <body>
@@ -74,6 +75,7 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:
 <div id="stamina"><div id="stamina-bar"></div></div>
 <div id="interact-prompt"></div>
 <div id="subtitle"></div>
+<canvas id="minimap" width="180" height="180"></canvas>
 <div id="doc-ui"><div class="doc-frame"><div class="doc-type"></div><div class="doc-text"></div><div class="doc-close">✕</div></div></div>
 <div id="choice-ui"><div class="choice-title"></div><button class="choice-btn" data-choice="yes">ДА</button><button class="choice-btn" data-choice="no">НЕТ</button></div>
 <div id="menu">
@@ -100,9 +102,10 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:
 <h2>УПРАВЛЕНИЕ</h2>
 <div class="ctrl-row"><span>W A S D</span><span>Движение</span></div>
 <div class="ctrl-row"><span>SHIFT</span><span>Бег</span></div>
-<div class="ctrl-row"><span>CTRL</span><span>Присесть</span></div>
+<div class="ctrl-row"><span>C</span><span>Присесть / укрыться</span></div>
 <div class="ctrl-row"><span>E</span><span>Взаимодействие</span></div>
 <div class="ctrl-row"><span>F</span><span>Фонарь</span></div>
+<div class="ctrl-row"><span>H</span><span>Таблетки (+25 HP)</span></div>
 <div class="ctrl-row"><span>R</span><span>Возродиться</span></div>
 <div class="ctrl-row"><span>ESC</span><span>Пауза</span></div>
 <div class="ctrl-row"><span>Мышь</span><span>Осмотр</span></div>
@@ -278,12 +281,14 @@ const chunkRoomTags = new Map();  // ключ -> Map cell->roomTag
 const chunkLRU = [];
 
 // Теги особых комнат
-const ROOM_TAGS = ['archive','server','storage','medical','kitchen','security','generator','lift','utility'];
+const ROOM_TAGS = ['archive','server','storage','medical','kitchen','security','generator','lift','utility','ritual','office','rust'];
+const WORLD_LIMIT = 96; // конечный лабиринт
 
 function chunkKey(cx, cy) { return cx + ',' + cy; }
 
 // Кэш getCell чтобы не дёргать Map каждый пиксель — не нужен, Map быстрый
 function getCell(wx, wy) {
+    if (wx < 0 || wy < 0 || wx >= WORLD_LIMIT || wy >= WORLD_LIMIT) return 1;
     const cx = Math.floor(wx / CHUNK), cy = Math.floor(wy / CHUNK);
     const ch = chunks.get(chunkKey(cx, cy));
     if (!ch) return 1;
@@ -403,6 +408,7 @@ function ensureChunkAt(wx, wy) {
     chunks.set(k, generateChunk(cx, cy));
     const ds = chunkDoorSeeds.get(k);
     if (ds) for (const dk of ds) if (!doors.has(dk)) doors.set(dk, createDoor(dk));
+    applyDoorStates();
     chunkLRU.push(k);
 }
 
@@ -418,6 +424,7 @@ function ensureChunks(px, py) {
             // Создаём двери этого чанка (если ещё нет)
             const ds = chunkDoorSeeds.get(k);
             if (ds) for (const dk of ds) if (!doors.has(dk)) doors.set(dk, createDoor(dk));
+            applyDoorStates();
             chunkLRU.push(k);
         }
     }
@@ -436,10 +443,10 @@ function ensureChunks(px, py) {
 const doors = new Map();
 // cell: 2 офисная, 3 металлическая, 4 аварийная, 5 деревянная, 6 выход (зелёная)
 const DOOR_TYPES = {
-    2: { name: 'Офисная дверь', speed: 0.6, sound: 'wood', tex: 'doorOffice' },
+    2: { name: 'Офисная дверь', speed: 0.6, sound: 'office', tex: 'doorOffice' },
     3: { name: 'Металлическая дверь', speed: 0.3, sound: 'metal', tex: 'doorMetal' },
     4: { name: 'Аварийная дверь', speed: 0.9, sound: 'alarm', tex: 'doorEmergency' },
-    5: { name: 'Деревянная дверь', speed: 0.5, sound: 'wood', tex: 'doorWood' },
+    5: { name: 'Ржавая дверь', speed: 0.5, sound: 'rust', tex: 'doorWood' },
     6: { name: 'Выход', speed: 0.7, sound: 'metal', tex: 'doorExit' }
 };
 
@@ -539,7 +546,9 @@ const ITEM_TYPES = {
     pill:    { name: 'Таблетки', color: [200,112,112] },
     map:     { name: 'Карта', color: [112,200,200] },
     photo:   { name: 'Фотография', color: [180,180,180] },
-    tool:    { name: 'Инструмент', color: [200,150,80] }
+    tool:    { name: 'Инструмент', color: [200,150,80] },
+    lore:    { name: 'Записка', color: [170,140,110] },
+    code:    { name: 'Фрагмент кода', color: [255,120,80] }
 };
 
 function findSpawnPos(sx, sy) {
@@ -580,6 +589,11 @@ function spawnWorldItems() {
     for (let i = 0; i < 3; i++)  { const pos = ringPos(60 + i, 8, 28); if(pos) items.push({x:pos.x,y:pos.y,type:'map',id:i,collected:false}); }
     for (let i = 0; i < 4; i++)  { const pos = ringPos(70 + i, 6, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'photo',id:i,collected:false}); }
     for (let i = 0; i < 3; i++)  { const pos = ringPos(80 + i, 7, 30); if(pos) items.push({x:pos.x,y:pos.y,type:'tool',id:i,collected:false}); }
+    for (let i = 0; i < 12; i++) { const pos = ringPos(100 + i, 9, 36); if(pos) items.push({x:pos.x,y:pos.y,type:'lore',id:i,collected:false}); }
+    for (let i = 0; i < 6; i++) {
+        const pos = ringPos(140 + i, 10, 40);
+        if(pos) items.push({x:pos.x,y:pos.y,type:'code',id:i,collected:false,target:i<3?'gen':'lift',slot:i%3});
+    }
 }
 
 // ==================== ДОКУМЕНТЫ ====================
@@ -596,6 +610,37 @@ const DOC_CONTENTS = [
 let activeTrigger = null;
 let triggerTimer = 0;
 let docReadFlags = new Set();
+
+const LORE_CONTENTS = [
+'Записка: Лифт запускается только после подачи питания и правильного кода.',
+'Отчёт охраны: Сущности боятся яркого света, но быстро адаптируются.',
+'Служебная памятка: Прячьтесь у стен и в тёмных углах, если слышите рык.',
+'Журнал смены: Вентиляция усиливается, когда рядом кто-то есть.',
+'Памятка технику: Код генератора разбит на три фрагмента.',
+'Памятка диспетчера: Код лифта разбит на три фрагмента.',
+'Лор: В секторе B2 видели три разных сущности.',
+'Лор: Улыбающийся идёт прямо и быстро.',
+'Лор: Безликий лучше слышит в темноте.',
+'Лор: Худой чаще патрулирует дальние коридоры.',
+'Лор: Светильники на потолке неисправны, частые мерцания неизбежны.',
+'Лор: Выход реален, если собрать документы и запустить лифт.'
+];
+const gameCodes = { generator: '', elevator: '' };
+
+function readLore(note){
+    const ui = document.getElementById('doc-ui');
+    ui.querySelector('.doc-type').textContent = 'Лор / Записка';
+    ui.querySelector('.doc-text').textContent = LORE_CONTENTS[note.id % LORE_CONTENTS.length];
+    ui.style.display = 'flex';
+    gameState = 'reading';
+}
+
+function updateCodesFromProgress(){
+    if(!gameCodes.generator){
+        gameCodes.generator = '' + (2 + Math.floor(hash(11,17)*7)) + (2 + Math.floor(hash(19,31)*7)) + (2 + Math.floor(hash(29,47)*7));
+        gameCodes.elevator = '' + (2 + Math.floor(hash(53,61)*7)) + (2 + Math.floor(hash(71,73)*7)) + (2 + Math.floor(hash(89,97)*7));
+    }
+}
 
 function readDocument(doc) {
     if (docReadFlags.has(doc.id)) return;
@@ -689,10 +734,17 @@ const player = {
     batteries: 0, keys: 0, pills: 0, maps: 0, tools: 0,
     bobPhase: 0, bobAmount: 0, headBob: 0, crouchLerp: 0,
     footstepTimer: 0, stamina: 1.0,
+    cameraShake: 0, hideBlend: 0,
+    codeFragments: { gen: ['?','?','?'], lift: ['?','?','?'] },
     _lookAtDoor: null, _lookAtDist: 100, _lookAtCell: 1,
     _lookItem: null, _lookGen: false, _lookLift: false
 };
 const input = { forward:false, back:false, left:false, right:false, sprint:false, crouch:false, interact:false, flashlight:false };
+
+function playerIsHidden(){
+    const nearWall = !canWalk(player.x + Math.cos(player.angle)*0.6, player.y + Math.sin(player.angle)*0.6) || !canWalk(player.x - Math.cos(player.angle)*0.6, player.y - Math.sin(player.angle)*0.6);
+    return player.crouching && nearWall && !player.flashlightOn;
+}
 let mouseDX = 0, mouseDY = 0;
 
 function updatePlayer(dt) {
@@ -705,6 +757,8 @@ function updatePlayer(dt) {
     // Приседание плавное
     player.crouching = input.crouch;
     player.crouchLerp = lerp(player.crouchLerp, player.crouching ? 1 : 0, dt * 8);
+    player.hideBlend = lerp(player.hideBlend, playerIsHidden() ? 1 : 0, dt * 6);
+    player.cameraShake = Math.max(0, player.cameraShake - dt * 1.8);
 
     // Выносливость
     const wantRun = input.sprint && input.forward && player.stamina > 0.05 && !player.crouching;
@@ -756,6 +810,15 @@ function updatePlayer(dt) {
             else if (item.type === 'map')     { player.maps++; showPrompt('Карта местности'); playSound('pickup'); }
             else if (item.type === 'photo')   { showPrompt('Старая фотография...'); playSound('pickup'); }
             else if (item.type === 'tool')    { player.tools++; showPrompt('Инструмент'); playSound('pickup'); }
+            else if (item.type === 'lore')    { readLore(item); playSound('pickup'); }
+            else if (item.type === 'code')    {
+                updateCodesFromProgress();
+                const side = item.target === 'gen' ? 'gen' : 'lift';
+                const code = side === 'gen' ? gameCodes.generator : gameCodes.elevator;
+                player.codeFragments[side][item.slot] = code[item.slot];
+                showPrompt('Фрагмент кода '+(side==='gen'?'генератора':'лифта')+': ' + player.codeFragments[side].join(''));
+                playSound('pickup');
+            }
             updateHUD(); saveGame();
         }
     }
@@ -767,9 +830,19 @@ function updatePlayer(dt) {
     if (dist(player.x, player.y, generator.x, generator.y) < 1.5 && !generator.active) {
         if (input.interact) {
             if (objectives.genParts >= 3) {
-                generator.active = true; objectives.powerOn = true;
-                showPrompt('Питание восстановлено!'); playSound('generator_on');
-                triggerEvent('power_on'); onProgressChanged(); updateHUD(); saveGame();
+                updateCodesFromProgress();
+                const known = player.codeFragments.gen.join('');
+                if (known.includes('?')) { showPrompt('Найдите все 3 фрагмента кода генератора: '+known); }
+                else {
+                    const val = prompt('Введите 3-значный код генератора');
+                    if (val === gameCodes.generator) {
+                        generator.active = true; objectives.powerOn = true;
+                        showPrompt('Питание восстановлено!'); playSound('generator_on');
+                        triggerEvent('power_on'); onProgressChanged(); updateHUD(); saveGame();
+                    } else {
+                        showPrompt('Неверный код генератора'); playSound('alarm_close');
+                    }
+                }
             } else {
                 showPrompt('Нужно '+objectives.genParts+'/3 деталей');
             }
@@ -778,9 +851,19 @@ function updatePlayer(dt) {
     // Лифт
     if (dist(player.x, player.y, elevator.x, elevator.y) < 1.5) {
         if (objectives.powerOn && !elevator.finalPhase && input.interact) {
-            elevator.finalPhase = true; elevator.timer = 18;
-            showPrompt('Лифт вызван! Держитесь!'); playSound('elevator_call');
-            startFinalPhase();
+            updateCodesFromProgress();
+            const known = player.codeFragments.lift.join('');
+            if (known.includes('?')) {
+                showPrompt('Найдите 3 фрагмента кода лифта: '+known);
+            } else {
+                const val = prompt('Введите код лифта');
+                if (val !== gameCodes.elevator) { showPrompt('Неверный код лифта'); playSound('alarm_close'); }
+                else {
+                    elevator.finalPhase = true; elevator.timer = 18;
+                    showPrompt('Лифт вызван! Держитесь!'); playSound('elevator_call');
+                    startFinalPhase();
+                }
+            }
         } else if (!objectives.powerOn && input.interact) {
             showPrompt('Лифт заблокирован. Нет питания.');
         }
@@ -796,16 +879,25 @@ function updatePlayer(dt) {
 }
 
 // ==================== A* PATHFINDING ====================
-// Простая сетка A* с обходом стен и дверей. Ограниченный радиус для производительности.
+class MinHeap {
+    constructor(){ this.arr=[]; }
+    push(v){ this.arr.push(v); this.bubble(this.arr.length-1); }
+    bubble(i){ while(i>0){ const p=(i-1)>>1; if(this.arr[p].f<=this.arr[i].f) break; [this.arr[p],this.arr[i]]=[this.arr[i],this.arr[p]]; i=p; } }
+    pop(){ if(this.arr.length===1) return this.arr.pop(); const top=this.arr[0]; this.arr[0]=this.arr.pop(); this.sink(0); return top; }
+    sink(i){ const n=this.arr.length; while(true){ let l=i*2+1,r=l+1,m=i; if(l<n&&this.arr[l].f<this.arr[m].f)m=l; if(r<n&&this.arr[r].f<this.arr[m].f)m=r; if(m===i) break; [this.arr[m],this.arr[i]]=[this.arr[i],this.arr[m]]; i=m; } }
+    get length(){ return this.arr.length; }
+}
+
 function astar(sx, sy, tx, ty, maxNodes) {
     maxNodes = maxNodes || 400;
     const start = { x: Math.floor(sx), y: Math.floor(sy) };
     const goal = { x: Math.floor(tx), y: Math.floor(ty) };
     if (start.x === goal.x && start.y === goal.y) return [{x:start.x,y:start.y}];
 
-    const open = [];
+    const open = new MinHeap();
     const cameFrom = new Map();
     const gScore = new Map();
+    const closed = new Set();
     const key = (n) => n.x + ',' + n.y;
     const h = (n) => Math.abs(n.x-goal.x) + Math.abs(n.y-goal.y);
 
@@ -815,14 +907,12 @@ function astar(sx, sy, tx, ty, maxNodes) {
     let visited = 0;
 
     while (open.length > 0 && visited < maxNodes) {
-        // найти минимальный f
-        let bi = 0;
-        for (let i = 1; i < open.length; i++) if (open[i].f < open[bi].f) bi = i;
-        const cur = open.splice(bi, 1)[0];
+        const cur = open.pop();
         const ck = key(cur);
+        if (closed.has(ck)) continue;
+        closed.add(ck);
         visited++;
         if (cur.x === goal.x && cur.y === goal.y) {
-            // восстановить путь
             const path = [{x:cur.x,y:cur.y}];
             let k = ck;
             while (cameFrom.has(k)) {
@@ -832,15 +922,14 @@ function astar(sx, sy, tx, ty, maxNodes) {
             }
             return path;
         }
-        // соседи
         const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
         for (const [dx,dy] of dirs) {
             const nx = cur.x+dx, ny = cur.y+dy;
             const c = getCell(nx, ny);
             if (c === 1) continue;
-            // двери проходимы если открыты
             if (c >= 2 && c <= 6) { const d = doors.get(nx+','+ny); if (!d || d.openAmount < 0.75) continue; }
             const nk = nx+','+ny;
+            if (closed.has(nk)) continue;
             const tentG = (gScore.get(ck)||0) + 1;
             if (tentG < (gScore.get(nk) || Infinity)) {
                 cameFrom.set(nk, {x:cur.x,y:cur.y});
@@ -849,7 +938,7 @@ function astar(sx, sy, tx, ty, maxNodes) {
             }
         }
     }
-    return null; // путь не найден
+    return null;
 }
 
 // ==================== МОНСТР ====================
@@ -861,8 +950,14 @@ const monster = {
     patrolTarget: null, path: null, pathIdx: 0, pathTimer: 0,
     alertLevel: 0, canOpenDoors: false,
     reactsToFlashlight: false, reactsToRunning: false,
-    growlTimer: 0
+    growlTimer: 0,
+    variant: 0
 };
+const MONSTER_VARIANTS = [
+    { name: 'Smiler', speedMul: 1.1, hearMul: 1.0, color: [60,40,20] },
+    { name: 'Grinner', speedMul: 1.0, hearMul: 1.2, color: [70,40,40] },
+    { name: 'Faceless', speedMul: 0.9, hearMul: 1.35, color: [65,65,65] }
+];
 
 function hasLineOfSight(x1, y1, x2, y2) {
     const d = dist(x1, y1, x2, y2);
@@ -908,7 +1003,9 @@ function moveMonsterAlongPath(speed, dt) {
 function updateMonster(dt) {
     const d = dist(monster.x, monster.y, player.x, player.y);
     monster.alertLevel = Math.min(1, objectives.docsCollected / 8);
-    monster.speed = 1.5 + monster.alertLevel * 1.4 + (elevator.finalPhase ? 1.0 : 0);
+    if (!MONSTER_VARIANTS[monster.variant]) monster.variant = 0;
+    const v = MONSTER_VARIANTS[monster.variant];
+    monster.speed = (1.5 + monster.alertLevel * 1.4 + (elevator.finalPhase ? 1.0 : 0)) * v.speedMul;
     monster.canOpenDoors = objectives.docsCollected >= 6 || elevator.finalPhase;
     monster.reactsToFlashlight = objectives.docsCollected >= 3;
     monster.reactsToRunning = objectives.docsCollected >= 4;
@@ -918,8 +1015,10 @@ function updateMonster(dt) {
     if (player.flashlightOn && monster.reactsToFlashlight) hearDist = Math.max(hearDist, 13);
     if (player.crouching) hearDist *= 0.5;
 
-    const canSee = d < 22 && hasLineOfSight(monster.x, monster.y, player.x, player.y);
-    const canHear = d < hearDist;
+    hearDist *= v.hearMul;
+    const hidden = playerIsHidden();
+    const canSee = !hidden && d < 22 && hasLineOfSight(monster.x, monster.y, player.x, player.y);
+    const canHear = !hidden && d < hearDist;
     monster.stateTimer -= dt;
     monster.growlTimer -= dt;
 
@@ -982,10 +1081,14 @@ function updateMonster(dt) {
                 monster.stateTimer -= dt;
                 if (monster.stateTimer <= 0) monster.state = 'searching';
             }
-            if (d < 0.8) {
-                player.health -= 32 * dt;
-                document.getElementById('damage-vignette').style.boxShadow = 'inset 0 0 120px rgba(80,0,0,0.7)';
-                if (player.health <= 0) { player.health = 0; gameState = 'dead'; }
+            if (d < 0.9 && !hidden) {
+                player.health = 0;
+                player.cameraShake = 1.2;
+                document.getElementById('damage-vignette').style.boxShadow = 'inset 0 0 120px rgba(120,0,0,0.9)';
+                gameState = 'dead';
+            } else if (d < 2.4 && !hidden) {
+                player.cameraShake = Math.max(player.cameraShake, 0.4);
+                document.getElementById('damage-vignette').style.boxShadow = 'inset 0 0 120px rgba(80,0,0,0.45)';
             } else {
                 document.getElementById('damage-vignette').style.boxShadow = 'inset 0 0 120px rgba(80,0,0,0)';
             }
@@ -1009,7 +1112,7 @@ function updateMonster(dt) {
     // HUD
     const stateNames = { idle: '???', heard: '!?', searching: 'Ищет...', near: 'РЯДОМ', chasing: 'ПОГОНЯ', lost: '???' };
     const mh = document.getElementById('hud-monster');
-    mh.querySelector('span').textContent = stateNames[monster.state] || '???';
+    mh.querySelector('span').textContent = (stateNames[monster.state] || '???') + ' / ' + (MONSTER_VARIANTS[monster.variant]?.name || 'Entity');
     mh.className = 'hud-item' + (monster.state==='chasing' ? ' off' : (monster.state==='near' ? ' warn' : ''));
 }
 // ==================== РЕНДЕРЕР ====================
@@ -1032,7 +1135,8 @@ function render() {
     const dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
     const planeX = -dirY * CFG.fov, planeY = dirX * CFG.fov;
     const pitchOff = player.pitch * h + player.headBob * h;
-    const crouchOff = player.crouchLerp * h * 0.08;
+    const shakeOff = (Math.random()-0.5) * player.cameraShake * h * 0.05;
+    const crouchOff = player.crouchLerp * h * 0.08 + shakeOff;
 
     // Потолок и пол
     for (let y = 0; y < h; y++) {
@@ -1063,6 +1167,12 @@ function render() {
             if (!objectives.powerOn) light *= 0.5;
             else light *= 0.8;
             light = clamp(light, 0, 1.5);
+            const rt = getRoomTag(Math.floor(fX), Math.floor(fY));
+            if (rt === 'medical') { r *= 0.95; g *= 1.05; b *= 1.06; }
+            else if (rt === 'server') { r *= 0.85; g *= 0.95; b *= 1.12; }
+            else if (rt === 'archive') { r *= 1.08; g *= 1.02; b *= 0.9; }
+            else if (rt === 'ritual') { r *= 1.16; g *= 0.82; b *= 0.82; }
+            else if (rt === 'kitchen') { r *= 1.08; g *= 1.0; b *= 0.9; }
             // Туман
             const fog = Math.max(0, 1 - rowDist / (CFG.viewDist*1.1));
             r *= fog; g *= fog; b *= fog;
@@ -1185,7 +1295,7 @@ function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
         if(spr.type==='item'){ sprH=Math.abs(Math.floor(h/tY*0.3)); sprW=sprH; color=ITEM_TYPES[spr.ref.type]?ITEM_TYPES[spr.ref.type].color:[200,200,200]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
         else if(spr.type==='gen'){ sprH=Math.abs(Math.floor(h/tY*0.7)); sprW=sprH*0.8; color=objectives.genParts>=3?[100,200,100]:[150,150,150]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
         else if(spr.type==='lift'){ sprH=Math.abs(Math.floor(h/tY*0.8)); sprW=sprH*0.6; color=objectives.powerOn?[80,200,80]:[100,100,100]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
-        else { sprH=Math.abs(Math.floor(h/tY*0.9)); sprW=sprH*0.5; color=[20,15,15]; alpha=Math.max(0,1-spr.d/(CFG.viewDist*0.6)); if(monster.state==='chasing'||monster.state==='near'){color=[40,10,10];alpha=Math.min(1,alpha+0.3);} }
+        else { sprH=Math.abs(Math.floor(h/tY*0.9)); sprW=sprH*0.5; const mv=MONSTER_VARIANTS[monster.variant]||MONSTER_VARIANTS[0]; color=mv.color.slice(); alpha=Math.max(0,1-spr.d/(CFG.viewDist*0.6)); if(monster.state==='chasing'||monster.state==='near'){color=[90,20,20];alpha=Math.min(1,alpha+0.3);} }
         const dSY=Math.max(0,Math.floor(-sprH/2+halfH+pitchOff));
         const dEY=Math.min(h-1,Math.floor(sprH/2+halfH+pitchOff));
         const dSX=Math.max(0,Math.floor(sprScreenX-sprW/2));
@@ -1223,6 +1333,7 @@ function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
         if(spr.type==='lift'&& Math.abs(sprScreenX-w/2)<sprW/2 && tY<2.5) player._lookLift = true;
     }
 }
+
 
 // ==================== ЧАСТИЦЫ (РЕНДЕР) ====================
 function renderParticles(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
@@ -1319,6 +1430,10 @@ function playSound(type) {
     const now=audioCtx.currentTime, vol=CFG.volume;
     if(type==='step'){ const b=audioCtx.createBuffer(1,audioCtx.sampleRate*0.08,audioCtx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/(d.length*0.15)); const s=audioCtx.createBufferSource(); s.buffer=b; const g=audioCtx.createGain(); g.gain.value=0.08*vol; const f=audioCtx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=800+Math.random()*400; s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(now); }
     else if(type==='wood_open'){playNoiseBurst(0.15,400,0.12*vol);setTimeout(()=>playNoiseBurst(0.08,300,0.06*vol),100);}
+    else if(type==='office_open'){playNoiseBurst(0.12,520,0.1*vol);playTone(220,0.07,0.025*vol);}
+    else if(type==='office_close'){playNoiseBurst(0.11,430,0.1*vol);}
+    else if(type==='rust_open'){playNoiseBurst(0.2,180,0.12*vol);playTone(110,0.15,0.03*vol);}
+    else if(type==='rust_close'){playNoiseBurst(0.14,160,0.11*vol);}
     else if(type==='wood_close'){playNoiseBurst(0.1,500,0.1*vol);}
     else if(type==='metal_open'){playNoiseBurst(0.4,200,0.18*vol);playTone(180,0.3,0.04*vol);}
     else if(type==='metal_close'){playNoiseBurst(0.25,300,0.15*vol);playTone(120,0.2,0.03*vol);}
@@ -1456,7 +1571,8 @@ function saveGame(){
         elevator:{finalPhase:elevator.finalPhase,timer:elevator.timer,active:elevator.active,x:elevator.x,y:elevator.y},
         generator:{active:generator.active,x:generator.x,y:generator.y},
         monster:{x:monster.x,y:monster.y,state:monster.state},
-        settings:{sens:CFG.sens,bright:CFG.brightness,vol:CFG.volume,scale:CFG.renderScale,grain:CFG.grain,vignette:CFG.vignette,chroma:CFG.chroma}
+        settings:{sens:CFG.sens,bright:CFG.brightness,vol:CFG.volume,scale:CFG.renderScale,grain:CFG.grain,vignette:CFG.vignette,chroma:CFG.chroma},
+        doorStates:[...doors.values()].map(d=>({k:d.wx+','+d.wy,openAmount:d.openAmount,opening:d.opening,closing:d.closing,locked:d.locked,jammed:d.jammed,interacted:d.interacted}))
     };
     try{localStorage.setItem('backrooms_b2_save',JSON.stringify(data));}catch(e){}
 }
@@ -1477,6 +1593,7 @@ function loadGameRaw(){
         if(data.elevator) Object.assign(elevator,data.elevator);
         if(data.generator) Object.assign(generator,data.generator);
         if(data.monster){ monster.x=data.monster.x; monster.y=data.monster.y; monster.state=data.monster.state; }
+        if(data.doorStates) _pendingDoorStates = data.doorStates;
         _savedSettings = data.settings || null;
         return true;
     }catch(e){ return false; }
@@ -1486,11 +1603,45 @@ function applySettingsFromSave(){
     CFG.sens=s.sens||5; CFG.brightness=s.bright||0.8; CFG.volume=s.vol||0.6; CFG.renderScale=s.scale||1.0; CFG.grain=s.grain!==false; CFG.vignette=s.vignette!==false; CFG.chroma=s.chroma!==false; applySettingsToUI(); initRenderer();
 }
 let _savedSettings=null;
+let _pendingDoorStates=null;
+function applyDoorStates(){
+    if(!_pendingDoorStates) return;
+    for(const ds of _pendingDoorStates){
+        const d=doors.get(ds.k);
+        if(!d) continue;
+        d.openAmount=ds.openAmount||0; d.opening=!!ds.opening; d.closing=!!ds.closing; d.locked=!!ds.locked; d.jammed=!!ds.jammed; d.interacted=!!ds.interacted;
+    }
+}
 function hasSave(){ return !!localStorage.getItem('backrooms_b2_save'); }
 function clearSave(){ try{localStorage.removeItem('backrooms_b2_save');}catch(e){} }
 
 // ==================== UI / СОСТОЯНИЕ ====================
 let gameState='menu';
+
+function renderMinimap(){
+    const mm = document.getElementById('minimap');
+    if(gameState!=='playing' || player.maps<=0){ mm.style.display='none'; return; }
+    mm.style.display='block';
+    const mctx = mm.getContext('2d');
+    const W = mm.width, H = mm.height, scale = 6, r = 14;
+    mctx.fillStyle='rgba(0,0,0,0.75)'; mctx.fillRect(0,0,W,H);
+    for(let gy=-r; gy<=r; gy++) for(let gx=-r; gx<=r; gx++){
+        const wx = Math.floor(player.x)+gx, wy = Math.floor(player.y)+gy;
+        const c = getCell(wx,wy);
+        const px = W/2 + gx*scale, py = H/2 + gy*scale;
+        if (c===1) mctx.fillStyle='#3a2f1a';
+        else if (c>=2 && c<=6) mctx.fillStyle='#b36a2f';
+        else mctx.fillStyle='#1a1a1a';
+        mctx.fillRect(px,py,scale-1,scale-1);
+    }
+    mctx.fillStyle='#4de86f';
+    mctx.beginPath(); mctx.arc(W/2,H/2,3,0,Math.PI*2); mctx.fill();
+    mctx.strokeStyle='#f5d778';
+    mctx.beginPath();
+    mctx.moveTo(W/2,H/2);
+    mctx.lineTo(W/2 + Math.cos(player.angle)*9, H/2 + Math.sin(player.angle)*9);
+    mctx.stroke();
+}
 
 function updateUI(){
     const prompt=document.getElementById('interact-prompt');
@@ -1537,6 +1688,13 @@ function applySettingsToUI(){
     document.getElementById('s-grain').checked=CFG.grain; document.getElementById('s-vignette').checked=CFG.vignette; document.getElementById('s-chroma').checked=CFG.chroma;
 }
 // ==================== ВВОД ====================
+function syncCursorState(){
+    const showMouse = gameState !== 'playing' || document.pointerLockElement !== canvas;
+    document.body.style.cursor = showMouse ? 'auto' : 'none';
+    document.getElementById('cursor').style.display = showMouse ? 'none' : 'block';
+    document.getElementById('crosshair').style.display = showMouse ? 'none' : 'block';
+}
+
 document.addEventListener('keydown', e => {
     // ESC обрабатываем в любом состоянии (пауза/возобновление)
     if(e.code==='Escape'){
@@ -1545,10 +1703,12 @@ document.addEventListener('keydown', e => {
             document.getElementById('menu').style.display='flex';
             document.getElementById('btn-continue').style.display='block';
             if(document.exitPointerLock) document.exitPointerLock();
+            syncCursorState();
         } else if(gameState==='paused'){
             gameState='playing';
             document.getElementById('menu').style.display='none';
             canvas.requestPointerLock();
+            syncCursorState();
         }
         return;
     }
@@ -1560,11 +1720,11 @@ document.addEventListener('keydown', e => {
         case 'KeyA': case 'ArrowLeft': input.left=true; break;
         case 'KeyD': case 'ArrowRight': input.right=true; break;
         case 'ShiftLeft': case 'ShiftRight': input.sprint=true; break;
-        case 'ControlLeft': case 'ControlRight': input.crouch=true; break;
+        case 'KeyC': input.crouch=true; break;
         case 'KeyE': input.interact=true; handleInteract(); break;
         case 'KeyF': player.flashlightOn=!player.flashlightOn; if(player.flashlightOn && player.flashBattery<=0) player.flashlightOn=false; break;
         case 'KeyH': if(player.pills>0 && player.health<100){ player.pills--; player.health=Math.min(100,player.health+25); showPrompt('Таблетка принята (+25 HP)'); updateHUD(); } break;
-        case 'KeyR': startNewGame(); break;
+        case 'KeyR': if(gameState==='dead'||gameState==='won') startNewGame(); break;
     }
 });
 document.addEventListener('keyup', e => {
@@ -1574,7 +1734,7 @@ document.addEventListener('keyup', e => {
         case 'KeyA': case 'ArrowLeft': input.left=false; break;
         case 'KeyD': case 'ArrowRight': input.right=false; break;
         case 'ShiftLeft': case 'ShiftRight': input.sprint=false; break;
-        case 'ControlLeft': case 'ControlRight': input.crouch=false; break;
+        case 'KeyC': input.crouch=false; break;
     }
 });
 document.addEventListener('mousemove', e => {
@@ -1585,6 +1745,7 @@ document.addEventListener('mousemove', e => {
 canvas.addEventListener('click', () => {
     if(gameState==='playing' && document.pointerLockElement!==canvas) canvas.requestPointerLock();
 });
+document.addEventListener('pointerlockchange', syncCursorState);
 
 function handleInteract(){
     if(player._lookAtDoor && player._lookAtDist<2.5){
@@ -1646,6 +1807,9 @@ function startNewGame(){
     monster.x=25; monster.y=25; monster.state='idle'; monster.alertLevel=0; monster.path=null; monster.pathIdx=0;
     monster.canOpenDoors=false; monster.reactsToFlashlight=false; monster.reactsToRunning=false;
     activeTrigger=null; triggerTimer=0; eventCooldown=90+Math.random()*40;
+    updateCodesFromProgress();
+    player.codeFragments = { gen: ['?','?','?'], lift: ['?','?','?'] };
+    monster.variant = Math.floor(Math.random()*MONSTER_VARIANTS.length);
     ensureChunks(player.x,player.y);
     spawnWorldItems();
     placeGeneratorAndElevator();
@@ -1659,6 +1823,7 @@ function startNewGame(){
     document.getElementById('stamina').style.display='block';
     gameState='playing';
     canvas.requestPointerLock();
+    syncCursorState();
     showSubtitle('Уровень B2. Найдите 8 документов, восстановите питание и вызовите лифт.',6000);
     saveGame();
 }
@@ -1684,29 +1849,39 @@ function startContinue(){
     document.getElementById('stamina').style.display='block';
     gameState='playing';
     canvas.requestPointerLock();
+    syncCursorState();
     updateHUD();
 }
 
 // ==================== ИГРОВОЙ ЦИКЛ ====================
-let lastTime=0, fpsCounter=0, fpsTime=0;
+let lastTime=0, fpsCounter=0, fpsTime=0, accumulator=0;
+const FIXED_DT = 1/60;
 function gameLoop(time){
     requestAnimationFrame(gameLoop);
-    const dt=Math.min((time-lastTime)/1000,0.05);
+    const frameDt=Math.min((time-lastTime)/1000,0.05);
     lastTime=time;
-    fpsCounter++; fpsTime+=dt;
-    if(fpsTime>=1){ fpsCounter=0; fpsTime=0; }
-    if(gameState==='playing'){
-        ensureChunks(player.x,player.y);
-        updatePlayer(dt);
-        updateDoors(dt);
-        updateMonster(dt);
-        updateEvents(dt);
-        updateParticles(dt);
-        updateAmbient(dt);
-        if(elevator.finalPhase) updateHUD();
+    accumulator += frameDt;
+    let loops = 0;
+    while(accumulator >= FIXED_DT && loops < 4){
+        const dt = FIXED_DT;
+        fpsCounter++; fpsTime+=dt;
+        if(fpsTime>=1){ fpsCounter=0; fpsTime=0; }
+        if(gameState==='playing'){
+            ensureChunks(player.x,player.y);
+            updatePlayer(dt);
+            updateDoors(dt);
+            updateMonster(dt);
+            updateEvents(dt);
+            updateParticles(dt);
+            updateAmbient(dt);
+            if(elevator.finalPhase) updateHUD();
+        }
+        accumulator -= FIXED_DT;
+        loops++;
     }
     if(gameState==='playing'||gameState==='dead'||gameState==='won'||gameState==='reading'||gameState==='choosing'){
         render();
+        renderMinimap();
         updateUI();
     }
 }
@@ -1722,6 +1897,7 @@ function init(){
         document.getElementById('btn-continue').style.display='block';
     }
     applySettingsToUI();
+    syncCursorState();
     requestAnimationFrame(gameLoop);
 }
 init();
