@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Backrooms — Уровень B2</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔦</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:auto;user-select:none}
@@ -755,7 +756,7 @@ function loadMonsterSpritesAsync() {
                 if (cellW < 4 || cellH < 4) throw new Error('tiny');
                 const off = document.createElement('canvas');
                 off.width = cellW; off.height = cellH;
-                const octx = off.getContext('2d');
+                const octx = off.getContext('2d', { willReadFrequently: true });
                 const frames = [];
                 for (let c = 0; c < cols; c++) {
                     octx.clearRect(0, 0, cellW, cellH);
@@ -1232,6 +1233,9 @@ function showDoorChoice(d, text) {
     ui.dataset.door = d.wx + ',' + d.wy;
     ui.style.display = 'flex';
     gameState = 'choosing';
+    // FIX: сбрасываем input при открытии диалога выбора
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false;
 }
 // ==================== ПРЕДМЕТЫ ====================
 const items = [];
@@ -1475,6 +1479,9 @@ function readLore(note){
     ui.querySelector('.doc-text').textContent = LORE_CONTENTS[note.id % LORE_CONTENTS.length];
     ui.style.display = 'flex';
     gameState = 'reading';
+    // FIX: сбрасываем input при открытии документа
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false;
 }
 
 function updateCodesFromProgress(){
@@ -1494,6 +1501,9 @@ function readDocument(doc) {
     ui.querySelector('.doc-text').textContent = content.text;
     ui.style.display = 'flex';
     gameState = 'reading';
+    // FIX: сбрасываем input при открытии документа
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false;
     objectives.docsCollected++;
     if (content.trigger !== 'none') { activeTrigger = content.trigger; triggerTimer = 8 + Math.random() * 15; }
     onProgressChanged();
@@ -1531,6 +1541,9 @@ function openCodeUI(target) {
     document.getElementById('code-ui').style.display = 'flex';
     document.exitPointerLock();
     gameState = 'codeEntry';
+    // FIX: сброс кнопок при открытии панели кода
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false;
 }
 
 function closeCodeUI() {
@@ -1607,7 +1620,7 @@ function openMinigame(type, onWin, onFail) {
     mg.onFail = onFail;
     mg.dragWire = null;
     mg.canvas = document.getElementById('mg-canvas');
-    mg.ctx = mg.canvas.getContext('2d');
+    mg.ctx = mg.canvas.getContext('2d', { willReadFrequently: true });
     const title = document.getElementById('mg-title');
     const hint = document.getElementById('mg-hint');
     if (type === 'wiring') {
@@ -1622,6 +1635,9 @@ function openMinigame(type, onWin, onFail) {
     document.getElementById('minigame-ui').style.display = 'flex';
     document.exitPointerLock();
     gameState = 'minigame';
+    // FIX: сбрасываем input при открытии мини-игры
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false;
     drawMinigame();
 }
 
@@ -2847,7 +2863,7 @@ function updateAllMonsters(dt) {
 }
 // ==================== РЕНДЕРЕР ====================
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
 let rw, rh, imgData, buf, zBuffer;
 
 function initRenderer() {
@@ -3874,7 +3890,7 @@ function renderMinimap(){
     const mm = document.getElementById('minimap');
     if(gameState!=='playing' || player.maps<=0){ mm.style.display='none'; return; }
     mm.style.display='block';
-    const mctx = mm.getContext('2d');
+    const mctx = mm.getContext('2d', { willReadFrequently: true });
     const W = mm.width, H = mm.height, scale = 6, r = 14;
     mctx.fillStyle='rgba(0,0,0,0.75)'; mctx.fillRect(0,0,W,H);
     for(let gy=-r; gy<=r; gy++) for(let gx=-r; gx<=r; gx++){
@@ -4108,6 +4124,9 @@ document.addEventListener('keydown', e => {
             document.getElementById('menu').style.display='flex';
             document.getElementById('btn-continue').style.display='block';
             if(document.exitPointerLock) document.exitPointerLock();
+            // FIX: сбрасываем input при паузе — иначе кнопки остаются "зажатыми"
+            input.forward=false; input.back=false; input.left=false;
+            input.right=false; input.sprint=false; input.crouch=false;
             syncCursorState();
         } else if(gameState==='paused'){
             gameState='playing';
@@ -4176,6 +4195,13 @@ document.addEventListener('keyup', e => {
         case 'KeyC': input.crouch=false; break;
     }
 });
+// FIX: Сброс всех кнопок при потере фокуса окна (Alt+Tab, win key и т.д.)
+// Без этого кнопка остаётся «зажатой» навсегда, игрок неуправляем
+window.addEventListener('blur', () => {
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false; input.interact=false;
+    mouseDX=0; mouseDY=0;
+});
 document.addEventListener('mousemove', e => {
     if(gameState!=='playing') return;
     mouseDX += e.movementX||0;
@@ -4184,7 +4210,20 @@ document.addEventListener('mousemove', e => {
 canvas.addEventListener('click', () => {
     if(gameState==='playing' && document.pointerLockElement!==canvas) canvas.requestPointerLock();
 });
-document.addEventListener('pointerlockchange', syncCursorState);
+document.addEventListener('pointerlockchange', () => {
+    syncCursorState();
+    // FIX: при выходе из pointer lock (ESC, Alt+Tab и т.д.) сбрасываем
+    // накопленные смещения мыши — иначе камера «прыгает» при следующем захвате
+    if (document.pointerLockElement !== canvas) {
+        mouseDX = 0; mouseDY = 0;
+        // FIX: сбрасываем input если pointer lock снялся НЕОЖИДАННО (не из паузы)
+        // Это предотвращает «залипание» WASD когда Pointer Lock снимается
+        if (gameState === 'playing') {
+            input.forward=false; input.back=false; input.left=false;
+            input.right=false; input.sprint=false; input.crouch=false;
+        }
+    }
+});
 // Авто-пауза при сворачивании вкладки + восстановление звука при разворачивании
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -4194,11 +4233,20 @@ document.addEventListener('visibilitychange', () => {
             try { document.exitPointerLock(); } catch(e){}
             syncCursorState();
         }
+        // FIX: сброс всех кнопок при сворачивании (keyup не придёт когда вкладка скрыта)
+        input.forward=false; input.back=false; input.left=false;
+        input.right=false; input.sprint=false; input.crouch=false; input.interact=false;
+        mouseDX=0; mouseDY=0;
+        // FIX: сброс аккумулятора физики, иначе при возвращении накопится
+        // огромный dt и произойдёт скачок физики
+        accumulator = 0;
     } else {
         // Разворачиваем — восстанавливаем AudioContext
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
+        // FIX: сброс lastTime чтобы первый кадр после возврата не имел огромный dt
+        lastTime = 0;
     }
 });
 
@@ -4289,6 +4337,9 @@ function openInventory(){
     if(gameState!=='playing') return;
     gameState='inventory';
     if(document.exitPointerLock) document.exitPointerLock();
+    // FIX: сбрасываем input при открытии инвентаря
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false;
     syncCursorState();
     renderInventory();
     document.getElementById('inventory-ui').style.display='flex';
@@ -4708,6 +4759,10 @@ function startNewGame(){
     worldDecors.length=0; decorChunkKeys.clear();
     player._inLocker=null; player._staminaOutShown=false;
     CFG.godMode=false; CFG.infStamina=false; CFG.infBattery=false; CFG.noclip=false;
+    // FIX: сброс всех кнопок при новой игре
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false; input.interact=false;
+    mouseDX=0; mouseDY=0; accumulator=0; lastTime=0;
     // Сброс цифр на стенах и кодов (новая игра = новые детерминированные коды)
     wallCodes.length=0; wallCodeChunkKeys.clear();
     roomLootChunkKeys.clear(); roomLootIdCounter=1000;
@@ -4755,6 +4810,10 @@ function startContinue(){
     worldDecors.length=0; decorChunkKeys.clear();
     player._inLocker=null; player._staminaOutShown=false;
     CFG.godMode=false; CFG.infStamina=false; CFG.infBattery=false; CFG.noclip=false;
+    // FIX: сброс всех кнопок при перезапуске/продолжении игры
+    input.forward=false; input.back=false; input.left=false;
+    input.right=false; input.sprint=false; input.crouch=false; input.interact=false;
+    mouseDX=0; mouseDY=0; accumulator=0; lastTime=0;
     // Сброс цифр на стенах — они регенерируются из ensureChunks, статус найденных восстановится из сейва
     wallCodes.length=0; wallCodeChunkKeys.clear();
     roomLootChunkKeys.clear(); roomLootIdCounter=1000;
@@ -4765,6 +4824,9 @@ function startContinue(){
         return;
     }
     ensureChunks(player.x,player.y);
+    // FIX: всегда спавним монстров перед loadGameRaw — иначе при отсутствии
+    // monsters в сейве массив остаётся пустым и игра работает без монстров
+    spawnMonsters();
     spawnWorldItems();
     placeGeneratorAndElevator();
     loadGameRaw(); // повторно применить collected-флаги поверх свежего спавна
@@ -4801,7 +4863,8 @@ function applyTargetFps(choice){
 applyTargetFps(CFG.targetFps);
 function gameLoop(time){
     requestAnimationFrame(gameLoop);
-    const frameDt=Math.min((time-lastTime)/1000,0.05);
+    // FIX: lastTime=0 означает первый кадр (или после сброса) — используем 0 delta
+    const frameDt = lastTime === 0 ? 0 : Math.min((time-lastTime)/1000, 0.05);
     lastTime=time;
     accumulator += frameDt;
     let loops = 0;
