@@ -2847,7 +2847,7 @@ function updateAllMonsters(dt) {
 }
 // ==================== РЕНДЕРЕР ====================
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
 let rw, rh, imgData, buf, zBuffer;
 
 function initRenderer() {
@@ -3134,6 +3134,13 @@ function render() {
 
 // ==================== СПРАЙТЫ ====================
 function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
+    let dg = 0;
+    for (const m of monsters) {
+        if (!m.active) continue;
+        const d = dist(player.x, player.y, m.x, m.y);
+        if (d < 4) dg = Math.max(dg, 1 - d / 4);
+    }
+    const dgPulse = dg * (0.7 + 0.3 * Math.sin(performance.now() * 0.008));
     const list = [];
     for(const item of items){
         if(item.collected) continue;
