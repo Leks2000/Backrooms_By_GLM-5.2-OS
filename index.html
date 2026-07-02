@@ -1552,7 +1552,7 @@ function readDocument(doc) {
 
 // ==================== ГЕНЕРАТОР И ЛИФТ ====================
 const generator = { x: 0, y: 0, active: false };
-const elevator = { x: 0, y: 0, active: false, timer: 0, finalPhase: false, doorOpen: false, playerInside: false, doorAnim: 0 };
+const elevator = { x: 0, y: 0, active: false, timer: 0, finalPhase: false, doorOpen: false, playerInside: false, doorAnim: 0, panelActive: false, panelEntry: '' };
 
 // Состояние UI ввода кода
 const codeUI = {
@@ -1629,6 +1629,44 @@ function submitCode() {
             objectives.powerOn = true; generator.active = true; playSound('generator_on');
             showPrompt('Генератор включён! Питание восстановлено.');
         } else { showPrompt('Неверный код генератора'); playSound('alarm_close'); }
+    }
+}
+
+function openElevatorPanel() {
+    if (!objectives.powerOn || elevator.finalPhase) return;
+    elevator.panelActive = true;
+    elevator.panelEntry = '';
+    gameState = 'elevatorPanel';
+    try { document.exitPointerLock(); } catch(e){}
+    showPrompt('Панель лифта активна: кликайте кнопки мышью.');
+}
+function closeElevatorPanel() {
+    elevator.panelActive = false;
+    elevator.panelEntry = '';
+    gameState = 'playing';
+    canvas.requestPointerLock();
+}
+function pressElevatorPanelKey(key) {
+    if (!elevator.panelActive) return;
+    if (key === 'C') elevator.panelEntry = '';
+    else if (key === 'OK') {
+        updateCodesFromProgress();
+        if (elevator.panelEntry === gameCodes.elevator) {
+            elevator.panelActive = false;
+            elevator.finalPhase = true; elevator.timer = 18;
+            gameState = 'playing';
+            canvas.requestPointerLock();
+            showPrompt('Код принят. Лифт запускается!');
+            playSound('elevator_call'); playSound('elevator_ascent');
+            startFinalPhase();
+        } else {
+            elevator.panelEntry = '';
+            showPrompt('Неверный код лифта');
+            playSound('alarm_close');
+        }
+    } else if (elevator.panelEntry.length < 3) {
+        elevator.panelEntry += key;
+        playSound('office_open');
     }
 }
 
@@ -2041,7 +2079,15 @@ function updatePlayer(dt) {
     player.crouching = input.crouch;
     player.crouchLerp = lerp(player.crouchLerp, player.crouching ? 1 : 0, dt * 8);
     player.hideBlend = lerp(player.hideBlend, playerIsHidden() ? 1 : 0, dt * 6);
-    player.cameraShake = Math.max(0, player.cameraShake - dt * 2.5); // затухает быстрее
+    player.cameraShake = Math.max(0, player.cameraShake - dt * 3.5); // мягкая тряска: быстрее затухает
+    // Внутри шкафчика игрок не проталкивается коллизией стены и может спокойно нажать E для выхода.
+    if (player._inLocker) {
+        player.crouching = true;
+        player.crouchLerp = lerp(player.crouchLerp, 1, dt * 8);
+        player.hideBlend = lerp(player.hideBlend, 1, dt * 8);
+        player.running = false;
+        input.forward = input.back = input.left = input.right = input.sprint = false;
+    }
     // Ф5: затухание красной вспышки атаки
     player._attackFlash = Math.max(0, player._attackFlash - dt * 2.0);
 
@@ -2172,11 +2218,9 @@ function updatePlayer(dt) {
             if (known.includes('?')) {
                 showPrompt('Найдите 3 фрагмента кода лифта: '+known);
             } else {
-                // Мини-игра "переключатели" → при успехе ввод кода
-                openMinigame('switches',
-                    () => { openCodeUI('lift'); },
-                    () => { showPrompt('Переключатели сброшены. Попробуйте снова.'); playSound('alarm_close'); }
-                );
+                // Ввод кода теперь прямо на панели внутри лифта, без отдельного DOM-окна.
+                if (isInsideElevatorZone(player.x, player.y)) openElevatorPanel();
+                else showPrompt('Зайдите внутрь лифта и используйте панель на стене.');
             }
         } else if (!objectives.powerOn && input.interact) {
             showPrompt('Лифт заблокирован. Нет питания.');
@@ -2917,7 +2961,7 @@ function render() {
     const dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
     const planeX = -dirY * CFG.fov, planeY = dirX * CFG.fov;
     const pitchOff = player.pitch * h + player.headBob * h;
-    const shakeOff = (Math.random()-0.5) * player.cameraShake * h * 0.025; // уменьшена амплитуда тряски
+    const shakeOff = (Math.random()-0.5) * player.cameraShake * h * 0.014; // ещё мягче амплитуда тряски
     // Усиленный присед: в нише/укрытии камера опускается сильнее
     const deepCrouch = player.crouchLerp + player.hideBlend * 0.5;
     const crouchOff = deepCrouch * h * 0.12 + shakeOff;
@@ -4045,6 +4089,31 @@ function renderMinimap(){
     mctx.stroke();
 }
 
+
+function renderElevatorPanelOverlay(){
+    if(!elevator.panelActive) return;
+    const W=rw, H=rh;
+    const px=Math.floor(W*0.38), py=Math.floor(H*0.22), pw=Math.floor(W*0.24), ph=Math.floor(H*0.56);
+    ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#111712'; ctx.fillRect(px,py,pw,ph);
+    ctx.strokeStyle='#c8a840'; ctx.lineWidth=2; ctx.strokeRect(px,py,pw,ph);
+    ctx.fillStyle='#051006'; ctx.fillRect(px+8,py+8,pw-16,Math.floor(ph*0.16));
+    ctx.fillStyle='#44ff44'; ctx.font='16px "Courier New"'; ctx.textAlign='center';
+    let code=elevator.panelEntry; while(code.length<3) code+='_';
+    ctx.fillText(code,px+pw/2,py+Math.floor(ph*0.12));
+    const keys=[['1','2','3'],['4','5','6'],['7','8','9'],['C','0','OK']];
+    const top=py+Math.floor(ph*0.22), gridH=ph-Math.floor(ph*0.25), bw=pw/3, bh=gridH/4;
+    for(let r=0;r<4;r++) for(let c=0;c<3;c++){
+        const x=px+c*bw+4, y=top+r*bh+4, ww=bw-8, hh=bh-8;
+        ctx.fillStyle=keys[r][c]==='OK'?'#173018':(keys[r][c]==='C'?'#301713':'#222820');
+        ctx.fillRect(x,y,ww,hh); ctx.strokeStyle='#4a513e'; ctx.strokeRect(x,y,ww,hh);
+        ctx.fillStyle=keys[r][c]==='OK'?'#66ff66':(keys[r][c]==='C'?'#ff7755':'#d8c070');
+        ctx.font='13px "Courier New"'; ctx.fillText(keys[r][c],x+ww/2,y+hh*0.62);
+    }
+    ctx.fillStyle='#d8c070'; ctx.font='10px "Courier New"';
+    ctx.fillText('ПАНЕЛЬ ЛИФТА · мышь / цифры · ESC выйти',W/2,H-12);
+}
+
 function updateUI(){
     const prompt=document.getElementById('interact-prompt');
     // Индикатор скрытности
@@ -4127,6 +4196,7 @@ function updateUI(){
         ctx.fillStyle='#88aa88'; ctx.font='11px "Courier New"'; ctx.textAlign='center';
         ctx.fillText('[E] выйти из шкафчика',rw/2,rh-14);
     }
+    if(gameState==='elevatorPanel') renderElevatorPanelOverlay();
     // Компас целей — стрелка к ближайшей активной цели
     if(gameState==='playing'){
         const cp = document.getElementById('hud-compass');
@@ -4291,6 +4361,13 @@ document.addEventListener('keydown', e => {
     }
     // Закрытие документа/выбора ESC-подобными
     // Ф7: инвентарь — закрытие клавишей E/I когда открыт
+    if(gameState==='elevatorPanel') {
+        if(e.code==='Escape' || e.code==='KeyE'){ closeElevatorPanel(); return; }
+        if(e.code.startsWith('Digit') || e.code.startsWith('Numpad')) { const k=e.code.replace('Digit','').replace('Numpad',''); if(/^\d$/.test(k)) pressElevatorPanelKey(k); return; }
+        if(e.code==='Backspace'){ pressElevatorPanelKey('C'); return; }
+        if(e.code==='Enter'){ pressElevatorPanelKey('OK'); return; }
+        return;
+    }
     if(gameState==='inventory' && (e.code==='KeyE' || e.code==='KeyI' || e.code==='Escape')){ closeInventory(); return; }
     // Ф8: закрытие просмотра доказательства
     if(evidenceViewing && (e.code==='Escape' || e.code==='KeyE' || e.code==='KeyI')){ closeEvidence(); return; }
@@ -4332,9 +4409,22 @@ document.addEventListener('mousemove', e => {
     mouseDX += e.movementX||0;
     mouseDY += e.movementY||0;
 });
-canvas.addEventListener('click', () => {
+canvas.addEventListener('click', (e) => {
+    if(gameState==='elevatorPanel') { handleElevatorPanelClick(e); return; }
     if(gameState==='playing' && document.pointerLockElement!==canvas) canvas.requestPointerLock();
 });
+function handleElevatorPanelClick(e){
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.clientX-rect.left)/rect.width, y=(e.clientY-rect.top)/rect.height;
+    const panel={x:0.38,y:0.22,w:0.24,h:0.56};
+    if(x<panel.x||x>panel.x+panel.w||y<panel.y||y>panel.y+panel.h) return;
+    const rx=(x-panel.x)/panel.w, ry=(y-panel.y)/panel.h;
+    if(ry<0.22) return;
+    const col=Math.floor(rx*3), row=Math.floor((ry-0.22)/0.78*4);
+    const keys=[['1','2','3'],['4','5','6'],['7','8','9'],['C','0','OK']];
+    if(keys[row]&&keys[row][col]) pressElevatorPanelKey(keys[row][col]);
+}
+
 document.addEventListener('pointerlockchange', syncCursorState);
 // Авто-пауза при сворачивании вкладки + восстановление звука при разворачивании
 document.addEventListener('visibilitychange', () => {
@@ -4356,12 +4446,18 @@ document.addEventListener('visibilitychange', () => {
 function handleInteract(){
     // === ПРИОРИТЕТ 1: выход из шкафчика (всегда первым!) ===
     if (player._inLocker) {
+        const locked = player._inLocker;
         player._inLocker = null;
-        // Телепортируем игрока к ближайшей проходимой клетке рядом
-        const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[-1,1],[1,-1],[-1,-1]];
-        for (const [ddx,ddy] of dirs) {
-            const nx = Math.floor(player.x) + ddx, ny = Math.floor(player.y) + ddy;
-            if (getCell(nx, ny) === 0) { player.x = nx + 0.5; player.y = ny + 0.5; break; }
+        // Возвращаем туда, откуда игрок вошёл. Это чинит случаи, когда шкаф стоит в стеновой клетке
+        // и поиск выхода вокруг центра шкафа не находит проходимую позицию.
+        if (locked && canWalk(locked.exitX, locked.exitY)) {
+            player.x = locked.exitX; player.y = locked.exitY;
+        } else {
+            const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[-1,1],[1,-1],[-1,-1]];
+            for (const [ddx,ddy] of dirs) {
+                const nx = locked.wx + ddx, ny = locked.wy + ddy;
+                if (getCell(nx, ny) === 0) { player.x = nx + 0.5; player.y = ny + 0.5; break; }
+            }
         }
         showPrompt('Вы вышли из шкафчика');
         playSound('locker_close');
@@ -4371,7 +4467,7 @@ function handleInteract(){
     // === ПРИОРИТЕТ 2: вход в шкафчик ===
     const lk = playerNearLocker();
     if (lk && dist(player.x, player.y, lk.wx + 0.5, lk.wy + 0.5) < 1.5) {
-        player._inLocker = { wx: lk.wx, wy: lk.wy };
+        player._inLocker = { wx: lk.wx, wy: lk.wy, exitX: player.x, exitY: player.y };
         player.x = lk.wx + 0.5;
         player.y = lk.wy + 0.5;
         showPrompt('Вы спрятались в шкафчик. [E] чтобы выйти.');
@@ -4880,7 +4976,7 @@ function startNewGame(){
     resetStats();   // Ф8: сброс статистики забега при новой игре
     // Сброс единократных подсказок (показать заново в новой игре)
     ['gen_need_parts','gen_ready','lift_no_power','lift_need_code'].forEach(k=>localStorage.removeItem('backrooms_hint_'+k));
-    generator.active=false; elevator.finalPhase=false; elevator.timer=0; elevator.active=false;
+    generator.active=false; elevator.finalPhase=false; elevator.timer=0; elevator.active=false; elevator.panelActive=false; elevator.panelEntry='';
     activeTrigger=null; triggerTimer=0; eventCooldown=90+Math.random()*40;
     updateCodesFromProgress();
     player.codeFragments = { gen: ['?','?','?'], lift: ['?','?','?'] };
@@ -5003,7 +5099,7 @@ function gameLoop(time){
         accumulator -= FIXED_DT;
         loops++;
     }
-    if(gameState==='playing'||gameState==='dead'||gameState==='won'||gameState==='reading'||gameState==='choosing'){
+    if(gameState==='playing'||gameState==='elevatorPanel'||gameState==='dead'||gameState==='won'||gameState==='reading'||gameState==='choosing'){
         render();
         renderMinimap();
         updateUI();
