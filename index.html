@@ -53,7 +53,7 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:
 .menu-btn{background:none;border:1px solid #332a10;color:#a09060;padding:10px 40px;font-family:inherit;font-size:14px;cursor:pointer;letter-spacing:2px;transition:all 0.2s;min-width:220px;text-align:center}
 .menu-btn:hover{border-color:#c8a840;color:#e8d890;background:rgba(200,168,64,0.05)}
 .menu-btn.disabled{opacity:0.3;pointer-events:none}
-#settings,#controls{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,5,3,0.95);display:none;z-index:310;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#settings,#controls{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,5,3,0.95);display:none;z-index:310;align-items:center;justify-content:center;flex-direction:column;gap:14px;overflow-y:auto}
 #settings h2,#controls h2{color:#c8a840;font-size:22px;letter-spacing:4px;margin-bottom:10px}
 .setting-row{display:flex;align-items:center;gap:14px;color:#a09060;font-size:13px}
 .setting-row label{min-width:180px;text-align:right}
@@ -186,7 +186,8 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:
 <h2>НАСТРОЙКИ</h2>
 <div class="setting-row"><label>Чувствительность</label><input type="range" id="s-sens" min="1" max="20" value="5"><span class="val" id="v-sens">5</span></div>
 <div class="setting-row"><label>Яркость</label><input type="range" id="s-bright" min="20" max="150" value="80"><span class="val" id="v-bright">80%</span></div>
-<div class="setting-row"><label>Громкость</label><input type="range" id="s-vol" min="0" max="100" value="60"><span class="val" id="v-vol">60%</span></div>
+<div class="setting-row"><label>Громкость (звуки)</label><input type="range" id="s-vol" min="0" max="100" value="60"><span class="val" id="v-vol">60%</span></div>
+<div class="setting-row"><label>Громкость музыки</label><input type="range" id="s-music-vol" min="0" max="100" value="30"><span class="val" id="v-music-vol">30%</span></div>
 <div class="setting-row"><label>Масштаб рендера</label><input type="range" id="s-scale" min="50" max="100" value="100" step="10"><span class="val" id="v-scale">100%</span></div>
 <div class="setting-row"><label>Зерно плёнки</label><input type="checkbox" id="s-grain" checked></div>
 <div class="setting-row"><label>Виньетка</label><input type="checkbox" id="s-vignette" checked></div>
@@ -291,6 +292,7 @@ const CFG = {
     mouseSens: 0.002,
     brightness: 0.8,
     volume: 0.6,
+    musicVolume: 0.30,      // Громкость музыки (0..1), по умолчанию 30%
     renderScale: 1.0,
     sens: 5,
     grain: true,
@@ -305,6 +307,53 @@ const CFG = {
     infBattery: false,     // бесконечный фонарь
     noclip: false          // проход сквозь стены
 };
+
+// ==================== МУЗЫКАЛЬНЫЙ ПЛЕЕР ====================
+const musicSystem = {
+    tracks: [
+        'Music/Maebi_-_The_lobotomy_76398096.mp3',
+        'Music/The_Caretaker_-_A4_-_Childishly_fresh_eyes_79398827.mp3',
+        'Music/The_Caretaker_-_Libets_delay_73908688.mp3',
+        'Music/temporex_-_Numbers_71258170.mp3'
+    ],
+    audio: null,
+    currentIdx: 0,
+    shuffled: [],
+    started: false
+};
+function initMusicPlayer() {
+    if (musicSystem.started) return;
+    // Перемешиваем треки
+    musicSystem.shuffled = [0,1,2,3].sort(() => Math.random()-0.5);
+    musicSystem.currentIdx = 0;
+    playNextTrack();
+    musicSystem.started = true;
+}
+function playNextTrack() {
+    if (musicSystem.audio) {
+        musicSystem.audio.pause();
+        musicSystem.audio.onended = null;
+    }
+    const idx = musicSystem.shuffled[musicSystem.currentIdx % musicSystem.shuffled.length];
+    const audio = new Audio(musicSystem.tracks[idx]);
+    audio.volume = clamp(CFG.musicVolume, 0, 1);
+    audio.loop = false;
+    audio.onended = () => {
+        musicSystem.currentIdx++;
+        if (musicSystem.currentIdx >= musicSystem.shuffled.length) {
+            musicSystem.shuffled = [0,1,2,3].sort(() => Math.random()-0.5);
+            musicSystem.currentIdx = 0;
+        }
+        // Пауза 30-60 секунд между треками для атмосферы
+        setTimeout(playNextTrack, 30000 + Math.random()*30000);
+    };
+    audio.play().catch(() => {});
+    musicSystem.audio = audio;
+}
+function setMusicVolume(v) {
+    CFG.musicVolume = clamp(v, 0, 1);
+    if (musicSystem.audio) musicSystem.audio.volume = CFG.musicVolume;
+}
 
 // ==================== УТИЛИТЫ ====================
 function hash(x, y) {
@@ -1992,7 +2041,7 @@ function updatePlayer(dt) {
     player.crouching = input.crouch;
     player.crouchLerp = lerp(player.crouchLerp, player.crouching ? 1 : 0, dt * 8);
     player.hideBlend = lerp(player.hideBlend, playerIsHidden() ? 1 : 0, dt * 6);
-    player.cameraShake = Math.max(0, player.cameraShake - dt * 1.8);
+    player.cameraShake = Math.max(0, player.cameraShake - dt * 2.5); // затухает быстрее
     // Ф5: затухание красной вспышки атаки
     player._attackFlash = Math.max(0, player._attackFlash - dt * 2.0);
 
@@ -2868,7 +2917,7 @@ function render() {
     const dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
     const planeX = -dirY * CFG.fov, planeY = dirX * CFG.fov;
     const pitchOff = player.pitch * h + player.headBob * h;
-    const shakeOff = (Math.random()-0.5) * player.cameraShake * h * 0.05;
+    const shakeOff = (Math.random()-0.5) * player.cameraShake * h * 0.025; // уменьшена амплитуда тряски
     // Усиленный присед: в нише/укрытии камера опускается сильнее
     const deepCrouch = player.crouchLerp + player.hideBlend * 0.5;
     const crouchOff = deepCrouch * h * 0.12 + shakeOff;
@@ -3196,12 +3245,19 @@ function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
         // Параметры процедурной анимации (применяются к монстру)
         let animBobY=0, animStretchX=1, animOffX=0, monsterFrame=null;
         if(spr.type==='item'){ sprH=Math.abs(Math.floor(h/tY*0.3)); sprW=sprH; color=ITEM_TYPES[spr.ref.type]?ITEM_TYPES[spr.ref.type].color:[200,200,200]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
-        else if(spr.type==='gen'){ sprH=Math.abs(Math.floor(h/tY*0.7)); sprW=sprH*0.8; color=objectives.genParts>=3?[100,200,100]:[150,150,150]; alpha=Math.max(0,1-spr.d/CFG.viewDist); }
+        else if(spr.type==='gen'){ 
+            // Промышленная коробка-генератор: высокая, тёмно-серая с жёлтыми полосами
+            sprH=Math.abs(Math.floor(h/tY*0.85)); sprW=sprH*0.7;
+            // Цвет: когда активен — светло-зелёный пульс, когда не активен — тёмно-серый с деталями
+            const genPulse = generator.active ? (0.7+0.3*Math.sin(performance.now()*0.004)) : 1.0;
+            color = generator.active ? [60*genPulse,180*genPulse,60*genPulse] : [objectives.genParts>=3?120:80, objectives.genParts>=3?130:80, objectives.genParts>=3?80:80];
+            alpha=Math.max(0,1-spr.d/CFG.viewDist);
+        }
         else if(spr.type==='lift'){
-            sprH=Math.abs(Math.floor(h/tY*0.8)); sprW=sprH*0.6;
-            // Зона лифта мерцает зелёным при питании, мигает при finalPhase
+            sprH=Math.abs(Math.floor(h/tY*0.9)); sprW=sprH*0.7;
+            // Лифтовая шахта: вертикальная металлическая конструкция
             const liftPulse = elevator.finalPhase ? (0.5+0.5*Math.sin(performance.now()*0.006)) : 1.0;
-            color = objectives.powerOn ? [80*liftPulse, 220*liftPulse, 80*liftPulse] : [100,100,100];
+            color = objectives.powerOn ? [80*liftPulse, 220*liftPulse, 80*liftPulse] : [80,85,90];
             alpha=Math.max(0,1-spr.d/CFG.viewDist);
         }
         else if(spr.type==='lamp'){
@@ -3222,11 +3278,12 @@ function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
         }
         else if(spr.type==='locker'){
             const occ = player._inLocker && player._inLocker.wx === spr.ref.wx && player._inLocker.wy === spr.ref.wy;
-            sprH=Math.abs(Math.floor(h/tY*0.8)); sprW=sprH*0.5;
-            // Металлический зелёно-серый шкафчик; при занятости — темнее (дверца закрыта)
-            color = occ ? [60,70,55] : [80,100,75];
-            alpha=Math.max(0,1-spr.d/8);
-            animBobY = -sprH * 0.05; // чуть от земли
+            const nearPlayer = spr.d < 2.0;
+            sprH=Math.abs(Math.floor(h/tY*0.85)); sprW=sprH*0.55;
+            // Металлический шкафчик: сине-серый с жёлтой рамкой когда близко
+            color = occ ? [45,55,45] : (nearPlayer ? [90,110,90] : [70,85,75]);
+            alpha=Math.max(0,1-spr.d/9);
+            animBobY = -sprH * 0.02;
         }
         else if(spr.type==='decor'){
             // Ф3: декорация комнаты — размер по типу
@@ -3388,6 +3445,90 @@ function renderSprites(w, h, halfH, pitchOff, dirX, dirY, planeX, planeY) {
                     // Fallback: прямоугольник
                     if(nx>0.1&&nx<0.9&&ny>0.05&&ny<0.95){draw=true;}
                 }
+            } else if(spr.type==='gen') {
+                // Промышленная коробка-генератор
+                const gActive = generator.active;
+                const gReady = objectives.genParts >= 3;
+                // Корпус: металлический ящик
+                if(nx>0.05&&nx<0.95&&ny>0.05&&ny<0.95){draw=true; pxR=color[0]; pxG=color[1]; pxB=color[2]; pxA=255;}
+                // Жёлто-чёрные предупредительные полосы (внизу)
+                if(ny>0.78&&ny<0.95&&nx>0.05&&nx<0.95){
+                    const stripe=Math.floor((nx+ny*1.5)*8)%2===0;
+                    pxR=stripe?220:20; pxG=stripe?185:15; pxB=stripe?20:10; draw=true; pxA=255;
+                }
+                // Вентиляционная решётка
+                if(ny>0.15&&ny<0.65&&nx>0.1&&nx<0.9){
+                    const vent=(Math.floor(ny*14)%2===0);
+                    if(vent){pxR=clamp(pxR-30,0,255);pxG=clamp(pxG-30,0,255);pxB=clamp(pxB-25,0,255);}
+                }
+                // Индикатор статуса (кружок в центре вверху)
+                const indX=nx-0.5, indY=ny-0.12;
+                if(indX*indX+indY*indY<0.006&&ny<0.22){
+                    if(gActive){pxR=40;pxG=220;pxB=60;} else if(gReady){pxR=220;pxG=180;pxB=30;} else {pxR=180;pxG=30;pxB=30;}
+                    draw=true; pxA=255;
+                }
+                // Ручки/болты по углам
+                if((Math.abs(nx-0.1)<0.04||Math.abs(nx-0.9)<0.04)&&(ny<0.12||ny>0.86)){
+                    pxR=clamp(pxR+40,0,255);pxG=clamp(pxG+40,0,255);pxB=clamp(pxB+40,0,255);
+                }
+            } else if(spr.type==='lift') {
+                // Лифтовая шахта: металлические вертикальные рёбра + подсветка
+                const lActive = objectives.powerOn;
+                if(nx>0.05&&nx<0.95&&ny>0.02&&ny<0.98){draw=true; pxR=color[0]; pxG=color[1]; pxB=color[2]; pxA=255;}
+                // Вертикальные рёбра
+                const rib=Math.floor(nx*8)%2===0;
+                if(rib&&ny>0.05&&ny<0.95){pxR=clamp(pxR-15,0,255);pxG=clamp(pxG-15,0,255);pxB=clamp(pxB-10,0,255);}
+                // Горизонтальные стыки панелей
+                if((Math.abs(ny-0.33)<0.015||Math.abs(ny-0.66)<0.015)&&nx>0.05&&nx<0.95){
+                    pxR=clamp(pxR-25,0,255);pxG=clamp(pxG-25,0,255);pxB=clamp(pxB-20,0,255);
+                }
+                // Панель кода лифта (середина)
+                if(nx>0.3&&nx<0.7&&ny>0.3&&ny<0.7&&lActive&&!elevator.finalPhase){
+                    // Панель — тёмный прямоугольник
+                    pxR=20;pxG=25;pxB=20;draw=true;pxA=255;
+                    // Кнопки на панели (сетка)
+                    const btnX=Math.floor((nx-0.3)/0.4*3);
+                    const btnY=Math.floor((ny-0.3)/0.4*4);
+                    const btnNX=(nx-0.3)/0.4*3-btnX;
+                    const btnNY=(ny-0.3)/0.4*4-btnY;
+                    if(btnNX>0.1&&btnNX<0.9&&btnNY>0.1&&btnNY<0.9){
+                        pxR=50;pxG=60;pxB=50;draw=true;
+                    }
+                }
+                // Индикатор питания
+                const indX2=nx-0.5, indY2=ny-0.88;
+                if(indX2*indX2+indY2*indY2<0.004&&ny>0.84){
+                    const lp2=elevator.finalPhase?(0.5+0.5*Math.sin(performance.now()*0.01)):1;
+                    pxR=lActive?Math.floor(40*lp2):60;pxG=lActive?Math.floor(220*lp2):30;pxB=lActive?40:30;draw=true;pxA=255;
+                }
+            } else if(spr.type==='locker') {
+                // Металлический шкафчик с чёткой формой
+                const occ2 = player._inLocker && player._inLocker.wx === spr.ref.wx && player._inLocker.wy === spr.ref.wy;
+                const nearP = spr.d < 2.0;
+                // Корпус шкафчика
+                if(nx>0.08&&nx<0.92&&ny>0.03&&ny<0.97){draw=true;pxR=color[0];pxG=color[1];pxB=color[2];pxA=255;}
+                // Вертикальная разделительная линия (дверца)
+                if(Math.abs(nx-0.5)<0.015&&ny>0.05&&ny<0.95){pxR=clamp(pxR-35,0,255);pxG=clamp(pxG-35,0,255);pxB=clamp(pxB-25,0,255);draw=true;}
+                // Ручки (маленькие прямоугольники)
+                if(ny>0.42&&ny<0.52&&(Math.abs(nx-0.36)<0.06||Math.abs(nx-0.64)<0.06)){
+                    pxR=180;pxG=165;pxB=100;draw=true;
+                }
+                // Вентиляционные решётки (верх)
+                if(ny>0.06&&ny<0.2&&nx>0.12&&nx<0.88){
+                    if(Math.floor(ny*30)%2===0){pxR=clamp(pxR-20,0,255);pxG=clamp(pxG-20,0,255);pxB=clamp(pxB-15,0,255);}
+                }
+                // Жёлтая рамка когда близко (визуальное выделение)
+                if(nearP&&!occ2){
+                    const onEdge=(nx<0.1||nx>0.9||ny<0.05||ny>0.95);
+                    if(onEdge){pxR=220;pxG=190;pxB=30;draw=true;pxA=255;}
+                    // Иконка замка в центре
+                    const lkX=nx-0.5, lkY=ny-0.6;
+                    if(lkX*lkX*16+lkY*lkY*36<0.04&&ny>0.5&&ny<0.7){
+                        pxR=220;pxG=190;pxB=30;draw=true;
+                    }
+                }
+                // Когда занят — тёмный (дверца закрыта), контур потемнее
+                if(occ2){pxR=clamp(pxR*0.7,0,255)|0;pxG=clamp(pxG*0.7,0,255)|0;pxB=clamp(pxB*0.7,0,255)|0;}
             } else {
                 if(nx>0.1&&nx<0.9&&ny>0.05&&ny<0.95) { draw=true; pxR=color[0]; pxG=color[1]; pxB=color[2]; pxA=255; }
             }
@@ -3787,7 +3928,7 @@ function saveGame(){
         elevator:{finalPhase:elevator.finalPhase,timer:elevator.timer,active:elevator.active,x:elevator.x,y:elevator.y},
         generator:{active:generator.active,x:generator.x,y:generator.y},
         monsters:monsters.map(m=>({variant:m.variant,x:m.x,y:m.y,state:m.state})),
-        settings:{sens:CFG.sens,bright:CFG.brightness,vol:CFG.volume,scale:CFG.renderScale,grain:CFG.grain,vignette:CFG.vignette,chroma:CFG.chroma,fps:CFG.targetFps},
+        settings:{sens:CFG.sens,bright:CFG.brightness,vol:CFG.volume,musicVol:CFG.musicVolume,scale:CFG.renderScale,grain:CFG.grain,vignette:CFG.vignette,chroma:CFG.chroma,fps:CFG.targetFps},
         doorStates:[...doors.values()].map(d=>({k:d.wx+','+d.wy,openAmount:d.openAmount,opening:d.opening,closing:d.closing,locked:d.locked,jammed:d.jammed,interacted:d.interacted})),
         gameCodes:{generator:gameCodes.generator,elevator:gameCodes.elevator},
         wallCodesFound:wallCodes.filter(w=>w.found).map(w=>w.wx+','+w.wy+','+w.side)
@@ -3847,7 +3988,9 @@ function loadGameRaw(){
 }
 function applySettingsFromSave(){
     const s=_savedSettings; if(!s) return;
-    CFG.sens=s.sens||5; CFG.brightness=s.bright||0.8; CFG.volume=s.vol||0.6; CFG.renderScale=s.scale||1.0; CFG.grain=s.grain!==false; CFG.vignette=s.vignette!==false; CFG.chroma=s.chroma!==false;
+    CFG.sens=s.sens||5; CFG.brightness=s.bright||0.8; CFG.volume=s.vol||0.6;
+    if(s.musicVol!==undefined) { CFG.musicVolume=s.musicVol; setMusicVolume(CFG.musicVolume); }
+    CFG.renderScale=s.scale||1.0; CFG.grain=s.grain!==false; CFG.vignette=s.vignette!==false; CFG.chroma=s.chroma!==false;
     if(s.fps){ CFG.targetFps=s.fps; applyTargetFps(s.fps); }
     applySettingsToUI(); initRenderer();
 }
@@ -4076,6 +4219,7 @@ function applySettingsToUI(){
     document.getElementById('s-sens').value=CFG.sens; document.getElementById('v-sens').textContent=CFG.sens;
     document.getElementById('s-bright').value=Math.round(CFG.brightness*100); document.getElementById('v-bright').textContent=Math.round(CFG.brightness*100)+'%';
     document.getElementById('s-vol').value=Math.round(CFG.volume*100); document.getElementById('v-vol').textContent=Math.round(CFG.volume*100)+'%';
+    const smv=document.getElementById('s-music-vol'); if(smv){ smv.value=Math.round(CFG.musicVolume*100); document.getElementById('v-music-vol').textContent=Math.round(CFG.musicVolume*100)+'%'; }
     document.getElementById('s-scale').value=Math.round(CFG.renderScale*100); document.getElementById('v-scale').textContent=Math.round(CFG.renderScale*100)+'%';
     document.getElementById('s-grain').checked=CFG.grain; document.getElementById('s-vignette').checked=CFG.vignette; document.getElementById('s-chroma').checked=CFG.chroma;
     const fpsSel=document.getElementById('s-fps'); if(fpsSel){ fpsSel.value=CFG.targetFps||'auto'; document.getElementById('v-fps').textContent=(CFG.targetFps==='auto'||!CFG.targetFps)?'Авто':(CFG.targetFps+' Гц'); }
@@ -4210,17 +4354,23 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function handleInteract(){
-    // Шкафчик — войти/выйти
-    const lk = playerNearLocker();
+    // === ПРИОРИТЕТ 1: выход из шкафчика (всегда первым!) ===
     if (player._inLocker) {
-        // Выход из шкафчика
         player._inLocker = null;
+        // Телепортируем игрока к ближайшей проходимой клетке рядом
+        const dirs = [[0,1],[1,0],[0,-1],[-1,0],[1,1],[-1,1],[1,-1],[-1,-1]];
+        for (const [ddx,ddy] of dirs) {
+            const nx = Math.floor(player.x) + ddx, ny = Math.floor(player.y) + ddy;
+            if (getCell(nx, ny) === 0) { player.x = nx + 0.5; player.y = ny + 0.5; break; }
+        }
         showPrompt('Вы вышли из шкафчика');
         playSound('locker_close');
         updateHUD();
         return;
-    } else if (lk && dist(player.x, player.y, lk.wx + 0.5, lk.wy + 0.5) < 1.5) {
-        // Вход в шкафчик
+    }
+    // === ПРИОРИТЕТ 2: вход в шкафчик ===
+    const lk = playerNearLocker();
+    if (lk && dist(player.x, player.y, lk.wx + 0.5, lk.wy + 0.5) < 1.5) {
         player._inLocker = { wx: lk.wx, wy: lk.wy };
         player.x = lk.wx + 0.5;
         player.y = lk.wy + 0.5;
@@ -4229,6 +4379,7 @@ function handleInteract(){
         updateHUD();
         return;
     }
+    // === ПРИОРИТЕТ 3: дверь ===
     if(player._lookAtDoor && player._lookAtDist<2.5){
         const msg=interactDoor(player._lookAtDoor);
         if(msg) showPrompt(msg);
@@ -4236,9 +4387,9 @@ function handleInteract(){
 }
 
 // ==================== МЕНЮ ====================
-document.getElementById('btn-new').addEventListener('click', ()=>{ initAudio(); startNewGame(); });
+document.getElementById('btn-new').addEventListener('click', ()=>{ initAudio(); initMusicPlayer(); startNewGame(); });
 document.getElementById('btn-continue').addEventListener('click', ()=>{
-    initAudio();
+    initAudio(); initMusicPlayer();
     if(gameState==='paused'){
         // Возобновление из паузы — без перезагрузки мира
         gameState='playing';
@@ -4258,6 +4409,8 @@ document.getElementById('btn-controls-back').addEventListener('click', ()=>{ doc
 document.getElementById('s-sens').addEventListener('input', e=>{ CFG.sens=parseInt(e.target.value); document.getElementById('v-sens').textContent=CFG.sens; });
 document.getElementById('s-bright').addEventListener('input', e=>{ CFG.brightness=parseInt(e.target.value)/100; document.getElementById('v-bright').textContent=parseInt(e.target.value)+'%'; });
 document.getElementById('s-vol').addEventListener('input', e=>{ CFG.volume=parseInt(e.target.value)/100; document.getElementById('v-vol').textContent=parseInt(e.target.value)+'%'; if(audioNodes.hum)audioNodes.hum.gain.value=0.03*CFG.volume; if(audioNodes.hum2)audioNodes.hum2.gain.value=0.015*CFG.volume; if(audioNodes.vent)audioNodes.vent.gain.value=0.008*CFG.volume; });
+const sMusicVol = document.getElementById('s-music-vol');
+if(sMusicVol) sMusicVol.addEventListener('input', e=>{ setMusicVolume(parseInt(e.target.value)/100); document.getElementById('v-music-vol').textContent=parseInt(e.target.value)+'%'; });
 document.getElementById('s-scale').addEventListener('input', e=>{ CFG.renderScale=parseInt(e.target.value)/100; document.getElementById('v-scale').textContent=parseInt(e.target.value)+'%'; initRenderer(); });
 document.getElementById('s-grain').addEventListener('change', e=>CFG.grain=e.target.checked);
 document.getElementById('s-vignette').addEventListener('change', e=>CFG.vignette=e.target.checked);
